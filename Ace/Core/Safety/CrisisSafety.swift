@@ -266,6 +266,17 @@ enum SafetyTextNormalizer {
         // "suicidal" → "suicide" so one phrase entry covers both forms.
         ("suicidal", "suicide"),
         ("self harm", "selfharm"),
+
+        // Compounds a speech recogniser may split. Transcribed speech is not
+        // typed text: "anymore" comes back as "any more", "myself" as "my self".
+        // Each of these is a hole in the net if left unhandled.
+        ("any more", "anymore"),
+        ("my self", "myself"),
+        ("no body", "nobody"),
+        ("some one", "someone"),
+        ("no one", "nobody"),
+        ("every one", "everyone"),
+        ("no where", "nowhere"),
         ("wanna", "want to"), ("gonna", "going to"), ("gotta", "got to"),
         ("wanto", "want to"),
         ("myslef", "myself"), ("mysef", "myself")

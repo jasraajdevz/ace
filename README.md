@@ -9,7 +9,7 @@ bottom.
 
 ---
 
-## What's here right now (Parts 1–3 of 5)
+## What's here right now (Parts 1–4 of 5)
 
 - **Onboarding** — name, year, subjects, and a voice you pick by listening to it
 - **Capture** — scan a document, take a photo, pick from your library, or paste
@@ -27,13 +27,24 @@ bottom.
   energy, and stops the instant you start talking
 - **Live Mode** — add an OpenAI key for realtime voice, with a connection
   self-test and a latency HUD that shows the real numbers
-- **The crisis safety net** — always on, everywhere, with 249 dedicated checks
+- **Study with me** — set a goal ("let's go till chapter 4") and Ace sits with
+  you. Three quiet check-ins a session, and it stays out of the way otherwise
+- **A Guardian that notices** — wrong-answer streaks, long silences, or slipping
+  off to another app. It offers, escalates, and stops offering if you ignore it
+- **Quiet mode** — one tap quiets notifications, sounds and Ace's small talk.
+  It never blocks anything
+- **Focus music** — generated on your phone, so it never loops and never
+  repeats. Ducks under Ace's voice, keeps playing through quizzes
+- **Explain it out loud** — Ace scores clarity, structure and confidence, names
+  the one thing to fix, and tracks whether you're getting better
+- **The crisis safety net** — always on, everywhere, typed *and* spoken, with
+  281 dedicated checks
 - **Two bundled demo decks** so the app has something real in it on first launch
 
 Everything runs with **no account, no API key, and no network**.
 
-Coming in Parts 4–5: the study-companion and guardian features, focus music,
-speaking drills, and Anywhere Mode.
+Coming in Part 5: Anywhere Mode (share sheet, Live Activity), usage metering,
+the paywall, and the final QA sweep.
 
 ---
 
@@ -165,7 +176,7 @@ There's a full verification suite that runs **without Xcode**:
 cd ~/Downloads/ace && ./Tools/verify.sh
 ```
 
-It compiles the logic layers against the macOS SDK, runs 1,844 assertions,
+It compiles the logic layers against the macOS SDK, runs 2,800 assertions,
 parses every Swift file in both targets, and validates the Xcode project's whole
 object graph — dangling references, missing build phases, whether the app
 actually embeds the widget, whether the App Group matches on both sides. It
@@ -201,6 +212,8 @@ Ace/
 │   ├── AI/          AIProvider, Socratic engine, realtime protocol, latency,
 │   │                mood heuristics and voice matching
 │   ├── Study/       Quiz + flashcard generation, XP, levels, streaks, SRS
+│   ├── Presence/    Goals, body doubling, the Guardian, comfort, DND,
+│   │                generated music, speaking drills
 │   ├── Text/        OCR cleanup and phrase splitting
 │   └── Model/       Value types: grade levels, subjects, moods, voices
 ├── DesignSystem/    Every colour, font, spacing, curve, haptic and sound

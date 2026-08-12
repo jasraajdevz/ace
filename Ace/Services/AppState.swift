@@ -61,6 +61,15 @@ final class AppState {
     /// barge-in affordance.
     private(set) var isSpeaking = false
 
+    /// Set by the comfort responder: quiet the game layer without the full
+    /// crisis suppression. Somebody who just said they're exhausted does not
+    /// need an XP toast (§10).
+    var celebrationsMuted = false
+
+    /// Ducks the focus music under Ace's voice. Wired by `PresenceCoordinator`
+    /// so neither the music nor the voice has to know about the other.
+    var onSpeakingChanged: ((Bool) -> Void)?
+
     // MARK: Safety
 
     let safety: SafetyCoordinator
@@ -103,7 +112,11 @@ final class AppState {
     func say(_ text: String) async {
         guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         isSpeaking = true
-        defer { isSpeaking = false }
+        onSpeakingChanged?(true)
+        defer {
+            isSpeaking = false
+            onSpeakingChanged?(false)
+        }
 
         // Duck the UI sound cues while Ace talks so they never collide.
         SoundCuePlayer.shared.gain = 0.35
@@ -116,6 +129,7 @@ final class AppState {
     func stopSpeaking() async {
         await provider.stopSpeaking()
         isSpeaking = false
+        onSpeakingChanged?(false)
         SoundCuePlayer.shared.gain = 1.0
     }
 
@@ -169,6 +183,7 @@ final class AppState {
         signals = BehaviourSignals()
         mood = .unknown
         prosody = persona.baseProsody
+        celebrationsMuted = false
     }
 }
 

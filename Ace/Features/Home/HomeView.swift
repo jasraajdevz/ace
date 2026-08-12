@@ -26,6 +26,7 @@ struct HomeView: View {
 
     @State private var isCapturing = false
     @State private var isShowingSettings = false
+    @State private var isStudyingTogether = false
     @State private var navigationPath = NavigationPath()
 
     private var progress: ProgressRecord {
@@ -50,6 +51,7 @@ struct HomeView: View {
                         }
 
                         captureCallToAction
+                        studyTogetherCard
                         materialSection
                     }
                     .aceScreenPadding()
@@ -100,6 +102,18 @@ struct HomeView: View {
         }
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(profile: profile)
+        }
+        .fullScreenCover(isPresented: $isStudyingTogether) {
+            NavigationStack {
+                BodyDoubleView(source: nil)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Close") { isStudyingTogether = false }
+                                .foregroundStyle(Ink.textSecondary)
+                        }
+                    }
+            }
+            .preferredColorScheme(.dark)
         }
         .aceAnimation(Motion.smooth, value: appState.safety.concernResponse?.headline)
         .preferredColorScheme(.dark)
@@ -230,6 +244,42 @@ struct HomeView: View {
                 }
 
                 Spacer(minLength: 0)
+            }
+        }
+    }
+
+    /// Body doubling doesn't need material — sometimes you just want somebody
+    /// in the room while you work on something Ace has never seen.
+    private var studyTogetherCard: some View {
+        AceTappableCard(
+            action: { isStudyingTogether = true },
+            accessibilityLabel: "Study with me. Set a goal and Ace sits with you while you work."
+        ) {
+            HStack(spacing: Space.l) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                        .fill(Ink.calm.opacity(0.18))
+                        .frame(width: 46, height: 46)
+                    Image(systemName: "person.2.fill")
+                        .font(.system(size: 19, weight: .medium))
+                        .foregroundStyle(Ink.calm)
+                }
+
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    Text("Study with me")
+                        .font(Typeface.bodyEmphasis)
+                        .foregroundStyle(Ink.textPrimary)
+                    Text("Set a goal. I'll sit with you and stay out of the way.")
+                        .font(Typeface.footnote)
+                        .foregroundStyle(Ink.textSecondary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Ink.textTertiary)
             }
         }
     }

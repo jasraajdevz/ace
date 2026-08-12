@@ -103,6 +103,13 @@ enum AllChecks {
             RealtimeIntegrationChecks.conversation,
             RealtimeIntegrationChecks.bargeIn,
             RealtimeIntegrationChecks.resilience,
+            GoalChecks.all,
+            BodyDoubleChecks.all,
+            GuardianChecks.all,
+            ComfortChecks.all,
+            FocusModeChecks.all,
+            SpeakingDrillChecks.all,
+            VoiceSafetyChecks.all,
             DemoDeckChecks.all,
             DesignSystemChecks.all,
         ]

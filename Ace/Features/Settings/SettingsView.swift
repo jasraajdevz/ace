@@ -26,6 +26,11 @@ struct SettingsView: View {
     @State private var soundsEnabled = SoundCuePlayer.shared.isEnabled
     @State private var hapticsEnabled = HapticSettings.shared.isEnabled
     @State private var isConfirmingReset = false
+    @State private var quietMode = DoNotDisturbState.off
+    @State private var musicScene: FocusScene = UserDefaults.standard.string(forKey: "ace.music.scene")
+        .flatMap(FocusScene.init(rawValue:)) ?? .off
+    @State private var musicVolume: Double = UserDefaults.standard.object(forKey: "ace.music.volume")
+        as? Double ?? 0.35
 
     var body: some View {
         NavigationStack {
@@ -35,6 +40,7 @@ struct SettingsView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Space.xxl) {
                         modeSection
+                        presenceSection
                         voiceSection
                         aboutYouSection
                         feedbackSection
@@ -73,6 +79,46 @@ struct SettingsView: View {
     /// live in `LiveModeSettings.swift`.
     private var modeSection: some View {
         LiveModeSection(controller: appState.providers)
+    }
+
+    // MARK: - Presence
+
+    /// Focus music and quiet mode also live inside a study session; they're
+    /// surfaced here so they're findable before one starts.
+    private var presenceSection: some View {
+        VStack(alignment: .leading, spacing: Space.m) {
+            AceSectionHeader(title: "While you study",
+                             subtitle: "Both of these are also one tap away inside a session")
+
+            DoNotDisturbToggle(state: quietMode) {
+                quietMode.isOn.toggle()
+                Feedback.tap()
+            }
+
+            AceCard {
+                VStack(alignment: .leading, spacing: Space.m) {
+                    Text("Focus sound")
+                        .font(Typeface.subheadline)
+                        .foregroundStyle(Ink.textPrimary)
+                    FocusMusicPicker(
+                        current: musicScene,
+                        volume: musicVolume,
+                        onSelect: { scene in
+                            musicScene = scene
+                            UserDefaults.standard.set(scene.rawValue, forKey: "ace.music.scene")
+                        },
+                        onVolume: { volume in
+                            musicVolume = volume
+                            UserDefaults.standard.set(volume, forKey: "ace.music.volume")
+                        }
+                    )
+                    Text("Generated on your phone — nothing is downloaded and it never loops.")
+                        .font(Typeface.caption)
+                        .foregroundStyle(Ink.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
     }
 
     // MARK: - Voice

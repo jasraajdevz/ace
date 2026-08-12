@@ -43,6 +43,7 @@ struct ComponentUsageProbe: View {
                 studyLoop
                 celebrationSurfaces
                 voiceSurfaces
+                presenceSurfaces
             }
         }
     }
@@ -107,6 +108,41 @@ struct ComponentUsageProbe: View {
             sessionXP: 60,
             onDone: {}
         )
+    }
+
+    // MARK: BodyDoubleView, SpeakingDrillView
+
+    @ViewBuilder private var presenceSurfaces: some View {
+        SessionTimer(elapsed: 754, progress: 0.42, goalText: "25 minutes", isMeasurable: true)
+        SessionTimer(elapsed: 60, progress: 0, goalText: "chapter 4", isMeasurable: false)
+
+        PresenceBanner(message: PresenceMessage(kind: .milestone,
+                                                text: "Halfway — 12 minutes down.",
+                                                isSpoken: false)) {}
+        PresenceBanner(message: PresenceMessage(kind: .closing,
+                                                text: "That's it.", isSpoken: true)) {}
+
+        if let nudge = Guardian.nudge(for: .suggestBreak, mood: .frustrated) {
+            GuardianNudgeCard(nudge: nudge, onAccept: {}, onDismiss: {})
+        }
+        if let welcome = Guardian.nudge(for: .welcomeBack, mood: .neutral,
+                                        goalText: "chapter 4", awaySeconds: 120) {
+            GuardianNudgeCard(nudge: welcome, onAccept: {}, onDismiss: {})
+        }
+
+        ComfortCard(message: ComfortResponder.respond(to: .tired, studentName: "Sam")) {}
+
+        DoNotDisturbToggle(state: .off) {}
+        DoNotDisturbToggle(state: .on) {}
+
+        FocusMusicPicker(current: .drift, volume: 0.35, onSelect: { _ in }, onVolume: { _ in })
+        FocusMusicPicker(current: .off, volume: 0, onSelect: { _ in }, onVolume: { _ in })
+
+        AceProgressBar(progress: 0.6, height: 6,
+                       tint: LinearGradient(colors: [Ink.accent, Ink.accent.opacity(0.55)],
+                                            startPoint: .leading, endPoint: .trailing),
+                       showsGlow: false)
+        AceChip(title: "Drift", systemImage: "wind", isSelected: true, tint: Ink.calm) {}
     }
 
     // MARK: Live Mode — Settings, the HUD, the listening bar

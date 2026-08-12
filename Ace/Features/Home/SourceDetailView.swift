@@ -30,7 +30,7 @@ struct SourceDetailView: View {
 
     /// The three ways into the loop.
     enum StudyMode: String, Identifiable, CaseIterable {
-        case tutor, quiz, flashcards
+        case tutor, quiz, flashcards, explain, together
         var id: String { rawValue }
     }
 
@@ -40,12 +40,16 @@ struct SourceDetailView: View {
         case tutor
         case quiz(StoredQuiz)
         case flashcards([StoredFlashcard])
+        case explain
+        case together
 
         var id: String {
             switch self {
             case .tutor: "tutor"
             case .quiz(let quiz): "quiz-\(quiz.id)"
             case .flashcards: "cards"
+            case .explain: "explain"
+            case .together: "together"
             }
         }
 
@@ -123,6 +127,10 @@ struct SourceDetailView: View {
                 QuizView(source: source, storedQuiz: quiz, gradeLevel: gradeLevel)
             case .flashcards(let cards):
                 FlashcardView(source: source, storedCards: cards)
+            case .explain:
+                SpeakingDrillView(source: source)
+            case .together:
+                BodyDoubleView(source: source)
             }
         }
         .alert("I couldn't build that",
@@ -175,6 +183,26 @@ struct SourceDetailView: View {
                     isCompact: true
                 ) { begin(.flashcards) }
             }
+
+            HStack(spacing: Space.m) {
+                StudyActionCard(
+                    symbol: "waveform.badge.mic",
+                    title: "Explain it",
+                    detail: "Out loud",
+                    tint: Ink.warning,
+                    isPreparing: preparing == .explain,
+                    isCompact: true
+                ) { begin(.explain) }
+
+                StudyActionCard(
+                    symbol: "person.2.fill",
+                    title: "Study with me",
+                    detail: "Set a goal",
+                    tint: Ink.calm,
+                    isPreparing: preparing == .together,
+                    isCompact: true
+                ) { begin(.together) }
+            }
         }
     }
 
@@ -208,6 +236,10 @@ struct SourceDetailView: View {
                 switch mode {
                 case .tutor:
                     route = .tutor
+                case .explain:
+                    route = .explain
+                case .together:
+                    route = .together
                 case .quiz:
                     let quiz = try await StudyMaterialStore.quiz(
                         for: source, gradeLevel: gradeLevel,

@@ -408,3 +408,102 @@ difference between having a voice feature and not.
 The audio session switches to `.playAndRecord` / `.voiceChat` while listening,
 which turns on the system echo canceller — without it the microphone hears Ace
 through the speaker and the server's VAD interrupts Ace with its own voice.
+
+
+---
+
+## Part 4 — The Presence
+
+### D31 · Three check-ins per session, and most ticks say nothing
+
+`BodyDoubleSession.tick()` runs every fifteen seconds and almost always returns
+nil. Milestones fire at a quarter, half and three quarters — three sentences in a
+twenty-five minute session — and each one is *silent* (shown, not spoken).
+
+Body doubling works because someone is present, not because something is
+happening. A companion that comments every two minutes is an interruption
+wearing company's clothes. The break suggestion fires once, ever, and is never
+repeated.
+
+### D32 · The Guardian is late, escalating, and gives up
+
+Thresholds were chosen by asking "would a good tutor say something here, or keep
+quiet?" — so three wrong answers earns an offer, not one; sixty seconds of
+silence is being stuck, twenty-five is thinking; and a frustrated *mood* on its
+own never interrupts, because that already changes how Ace speaks.
+
+On top: a 75-second cooldown, an escalation ladder so the same offer is never
+repeated, declined offers are remembered, and after four ignored nudges Ace stops
+offering entirely. Being ignored three times is an answer.
+
+The welcome-back line is the one thing that bypasses the cooldown — greeting
+someone's return late is worse than not at all — and it never mentions where they
+went or how long they were away. "You were gone 12 minutes" is surveillance, not
+company. There's a test asserting that.
+
+### D33 · Do Not Disturb is provably non-blocking
+
+`DoNotDisturbState.capabilities` is a dictionary where every value is `true`, and
+a test iterates every DND configuration asserting that none of them is ever
+`false`. It exists purely so §10's "it never blocks the app or the studying" is
+a checkable property rather than a promise in a comment.
+
+The one thing DND can never quiet is the crisis net: `allows(.safety)` returns
+true unconditionally, in every configuration.
+
+### D34 · Comfort comes first, and the bridge is always an offer
+
+`ComfortResponder` runs strictly *after* the crisis service, on messages that
+came back `.none`. Every response is comfort, then a bridge — never the reverse,
+and the bridge is phrased as "want to…" rather than "you should…".
+
+Tiredness gets explicit permission to stop. Anxiety is the only feeling that
+doesn't mute the game layer, because a small win genuinely helps there.
+
+And loneliness points **outward**: it names the possibility of messaging a real
+person, and there is a test forbidding "you have me", "I'm all you need" and
+similar. A companion that positions itself as someone's only company is doing
+harm however warm it sounds — §10 is explicit about this.
+
+### D35 · Focus music is synthesised, not licensed
+
+There is no audio file in the app. `AmbientScore` generates note events; the
+player renders and schedules them eight seconds at a time. Three consequences:
+no licensing question (there is no recording to license), no megabytes in the
+bundle, and **no loop seam** — looped study music becomes grating precisely
+because you start hearing the loop.
+
+Notes come from a pentatonic minor scale, where no combination is dissonant, so
+the generator cannot produce a wrong note. A test asserts every generated pitch
+is in the scale and that density stays below four notes a second, because
+background music that gets busy stops being background.
+
+Ducking is asymmetric: fast down (120ms), slow up (550ms). The reverse sounds
+like a broken radio. And it ducks to 22% rather than to silence — music that
+vanishes and returns is more distracting than music that dips.
+
+### D36 · Speaking drills name ONE thing to fix
+
+`SpeakingDrillScorer` scores clarity, structure and confidence, then picks the
+weakest axis and turns it into a concrete instruction — naming the terms they
+never said, or telling them to add "because" and "which means", or to drop the
+hedging. A list of six weaknesses is a list nobody acts on.
+
+Feedback always opens with a real strength, named specifically. Feedback that
+opens with a criticism gets heard as "that was bad", and nothing after it lands.
+
+Improvement is measured as recent-half versus earlier-half, not last-versus-first,
+so one good day doesn't read as progress — and a dip is explained kindly rather
+than reported as a decline.
+
+### D37 · A separate suite for the crisis net on spoken transcripts
+
+Speech recognisers produce run-on sentences with no punctuation, dropped
+apostrophes, filler left in, and compounds split into two words. A safety net
+tuned on typed input can quietly fail on spoken input, and nobody would notice
+until it mattered.
+
+`VoiceSafetyChecks` runs the net over realistic transcripts of both disclosures
+and coursework. It immediately found a real hole: "anymore" comes back as "any
+more", so "i do not want to be here any more" matched nothing. The normaliser now
+rejoins the compounds a recogniser is likely to split.
