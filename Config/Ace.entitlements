@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Shared container so the widget can read the progress snapshot the app
+	     writes. See Shared/WidgetSnapshot.swift.
+
+	     If this capability isn't provisioned (it needs a paid Apple Developer
+	     account), the app still runs fine: WidgetStore falls back to the app's
+	     own UserDefaults and the widget shows its empty state. See README. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.acestudy.Ace</string>
+	</array>
+</dict>
+</plist>

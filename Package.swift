@@ -37,8 +37,13 @@ let package = Package(
                 "Ace/Features/Onboarding",
                 "Ace/Features/Capture",
                 "Ace/Features/Home",
+                "Ace/Features/Study/QuizView.swift",
+                "Ace/Features/Study/FlashcardView.swift",
+                "Ace/Features/Study/TutorView.swift",
                 "Ace/Features/Settings",
                 "Ace/AceApp.swift",
+                // `@main` is exclusive and this target already has a main.swift.
+                "AceWidget/AceWidgetBundle.swift",
                 "Ace.xcodeproj",
                 "Config",
                 "Tools/gen",
@@ -50,7 +55,14 @@ let package = Package(
                 "Ace/Core",           // the logic under test
                 "Ace/DesignSystem",   // type-checked against the macOS SDK
                 "Ace/Services",       // Vision / AVFoundation / Speech — all macOS-available
+                "Shared",             // the app<->widget contract, compiled into both targets
+                "AceWidget",          // WidgetKit builds on macOS too, so the widget is checked
                 "Ace/Features/Safety",// the crisis surfaces — no SwiftData, so fully checkable
+                // Individual screens that touch no persistence. `sources` takes
+                // file paths as well as directories, so the SwiftData-free parts
+                // of a mixed folder can still be type-checked.
+                "Ace/Features/Study/QuizResultsView.swift",
+                "Ace/Features/Study/FlashcardResultsView.swift",
                 "Tests/Checks",       // the assertions
                 "Tools/VerifyMain",   // the runner's entry point
             ]

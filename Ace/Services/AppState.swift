@@ -25,6 +25,15 @@ final class AppState {
 
     var providerMode: AIProviderMode { provider.mode }
 
+    // MARK: The student
+
+    /// A snapshot of the profile. Mirrored here so screens deep in the study
+    /// loop can read the grade level and voice without having to be handed the
+    /// `Profile` object — the tutor needs the register, not the database row.
+    private(set) var settings = StudentSettings()
+
+    var gradeLevel: GradeLevel { settings.gradeLevel }
+
     // MARK: Voice
 
     /// The persona the student picked. Mirrored here so views don't have to
@@ -63,6 +72,7 @@ final class AppState {
     /// Takes a plain value rather than the SwiftData `Profile` on purpose:
     /// `AppState` has no business knowing how the student is stored.
     func apply(_ settings: StudentSettings) {
+        self.settings = settings
         persona = VoiceRoster.persona(id: settings.voicePersonaID)
         prosody = persona.baseProsody
         safety.region = settings.supportRegion

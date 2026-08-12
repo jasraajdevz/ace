@@ -283,6 +283,8 @@ struct CaptureView: View {
         }
 
         try? modelContext.save()
+        // New material changes what the widget should say, so push it now.
+        WidgetBridge.refresh(from: modelContext)
         Feedback.complete()
         onSaved(source)
         dismiss()

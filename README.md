@@ -9,21 +9,27 @@ bottom.
 
 ---
 
-## What's here right now (Part 1 of 5)
+## What's here right now (Parts 1–2 of 5)
 
 - **Onboarding** — name, year, subjects, and a voice you pick by listening to it
 - **Capture** — scan a document, take a photo, pick from your library, or paste
   text → on-device OCR → cleaned, editable study material
-- **The crisis safety net** — always on, everywhere, with 1,227 automated checks
-  behind it
-- **The full design system** — colours, type, spacing, motion, haptics and
-  synthesised UI sounds
+- **Talk it through** — a Socratic tutor grounded in *your* page. It asks before
+  it answers, hints one rung at a time, and refuses to make things up
+- **Quiz me** — multiple choice with plausible distractors, a hint ladder, and a
+  results screen whose main button redoes only the ones you missed
+- **Flashcards** — spaced repetition, a card that flips, and forgotten cards that
+  come back before the session ends
+- **Progression** — XP for effort (not just for being right), levels, a streak
+  with a free repair, and a level-up worth screen-recording
+- **Home-screen widget** — small and medium: level, streak, and one warm nudge
+- **The crisis safety net** — always on, everywhere, with 249 dedicated checks
 - **Two bundled demo decks** so the app has something real in it on first launch
 
 Everything runs with **no account, no API key, and no network**.
 
-Coming in Parts 2–5: the Socratic tutor sessions and drill engine, live
-realtime voice, the study-companion and guardian features, and Anywhere Mode.
+Coming in Parts 3–5: live realtime voice over WebRTC, the study-companion and
+guardian features, and Anywhere Mode.
 
 ---
 
@@ -67,11 +73,25 @@ That's it — no key, no sign-in. The app is fully usable.
 ## 4 · Try this first
 
 1. Go through onboarding — **tap each voice** to hear it.
-2. On the home screen, tap **Add something to study**.
-3. Tap **Paste text** and paste in a few paragraphs from anything you're
-   actually studying.
-4. Ace reads it, shows you what it pulled out, and asks what you're working on.
-5. Save it — you'll land on the material with the key ideas Ace found.
+2. On the home screen you'll already find two demo decks. Open **How Plants Make
+   Food** and tap **Quiz me** to see the whole loop in about a minute.
+3. Then add your own: **Add something to study ▸ Paste text**, and paste a few
+   paragraphs from anything you're actually working on.
+4. On that material, try **Talk it through** and type "I don't know" — watch Ace
+   point you at a real line from your page instead of lecturing.
+5. Ask it something that *isn't* on the page. It will tell you so rather than
+   inventing an answer. That refusal is the whole design.
+
+### Adding the widget
+
+Long-press your home screen ▸ **+** ▸ search **Ace** ▸ add the small or medium
+one. It updates the moment your XP or streak changes.
+
+> On a **free** Apple ID, App Groups aren't provisioned, so a build to a physical
+> device may fail signing on the widget. Two options: run in the Simulator
+> (everything works), or in Xcode select the **AceWidgetExtension** target ▸
+> **Signing & Capabilities** ▸ remove **App Groups**. The app itself is
+> unaffected — the widget just shows its empty state.
 
 ## 5 · Run on your own iPhone (optional)
 
@@ -128,9 +148,11 @@ There's a full verification suite that runs **without Xcode**:
 cd ~/Downloads/ace && ./Tools/verify.sh
 ```
 
-It compiles the logic layers against the macOS SDK, runs 1,227 assertions,
-parses every Swift file, and validates the Xcode project, Info.plist, asset
-catalogue and bundled decks. It takes a few seconds.
+It compiles the logic layers against the macOS SDK, runs 1,584 assertions,
+parses every Swift file in both targets, and validates the Xcode project's whole
+object graph — dangling references, missing build phases, whether the app
+actually embeds the widget, whether the App Group matches on both sides. It
+takes a few seconds.
 
 To run just the assertions:
 
@@ -142,6 +164,13 @@ To regenerate the app icon or the demo decks after changing them:
 
 ```bash
 cd ~/Downloads/ace && swift Tools/gen/make_icon.swift && swift run AceVerify --make-demo-decks
+```
+
+The Xcode project file is generated too, so adding a target is an edit to a
+script rather than surgery on a 400-line plist:
+
+```bash
+cd ~/Downloads/ace && python3 Tools/gen/build_pbxproj.py && python3 Tools/gen/check_pbxproj.py
 ```
 
 ---
@@ -162,9 +191,11 @@ Ace/
 ├── Features/        The screens
 └── Resources/       The two bundled demo decks
 
-Config/Info.plist    Permission strings and the launch screen
+AceWidget/           The home-screen widget (its own target)
+Shared/              WidgetSnapshot.swift — compiled into BOTH targets
+Config/              Info.plists, entitlements, permission strings
 Tests/Checks/        The assertion suite
-Tools/               verify.sh, the icon generator
+Tools/               verify.sh, the icon generator, the project generator
 ```
 
 **The rule that shapes all of it:** logic lives in `Core/` and is testable
@@ -184,6 +215,10 @@ That behaviour is in [Ace/Core/Safety/CrisisSafety.swift](Ace/Core/Safety/Crisis
 it is deliberately simple enough to read end to end, and it has 249 dedicated
 checks — including a suite that makes sure a history essay about the Somme or a
 literature question about Macbeth never triggers it.
+
+It reaches everywhere: once it fires, XP, streaks, quiz scores and the level-up
+celebration are all suppressed for the rest of that session, and the results
+screen shows no numbers at all. Dismissing it does not switch them back on.
 
 ---
 

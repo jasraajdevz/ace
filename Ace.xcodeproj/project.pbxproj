@@ -6,9 +6,50 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		ACE100000000000000000130 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE100000000000000000120 /* WidgetSnapshot.swift */; };
+		ACE100000000000000000131 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE100000000000000000120 /* WidgetSnapshot.swift */; };
+		ACE100000000000000000132 /* AceWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE100000000000000000121 /* AceWidget.swift */; };
+		ACE100000000000000000133 /* AceWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE100000000000000000122 /* AceWidgetBundle.swift */; };
+		ACE100000000000000000134 /* AceWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE100000000000000000123 /* AceWidgetViews.swift */; };
+		ACE100000000000000000111 /* AceWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ACE100000000000000000100 /* AceWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		ACE100000000000000000112 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = ACE100000000000000000060 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = ACE100000000000000000103;
+			remoteInfo = AceWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		ACE100000000000000000110 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				ACE100000000000000000111 /* AceWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		ACE100000000000000000001 /* Ace.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ace.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		ACE100000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		ACE100000000000000000100 /* AceWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AceWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		ACE100000000000000000120 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
+		ACE100000000000000000121 /* AceWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AceWidget.swift; sourceTree = "<group>"; };
+		ACE100000000000000000122 /* AceWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AceWidgetBundle.swift; sourceTree = "<group>"; };
+		ACE100000000000000000123 /* AceWidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AceWidgetViews.swift; sourceTree = "<group>"; };
+		ACE100000000000000000124 /* AceWidget-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AceWidget-Info.plist"; sourceTree = "<group>"; };
+		ACE100000000000000000125 /* Ace.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Ace.entitlements; sourceTree = "<group>"; };
+		ACE100000000000000000126 /* AceWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AceWidget.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -27,6 +68,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ACE100000000000000000105 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -34,15 +82,38 @@
 			isa = PBXGroup;
 			children = (
 				ACE100000000000000000010 /* Ace */,
+				ACE100000000000000000101 /* AceWidget */,
+				ACE100000000000000000102 /* Shared */,
 				ACE100000000000000000031 /* Config */,
 				ACE100000000000000000032 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		ACE100000000000000000101 /* AceWidget */ = {
+			isa = PBXGroup;
+			children = (
+				ACE100000000000000000122 /* AceWidgetBundle.swift */,
+				ACE100000000000000000121 /* AceWidget.swift */,
+				ACE100000000000000000123 /* AceWidgetViews.swift */,
+			);
+			path = AceWidget;
+			sourceTree = "<group>";
+		};
+		ACE100000000000000000102 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				ACE100000000000000000120 /* WidgetSnapshot.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		ACE100000000000000000031 /* Config */ = {
 			isa = PBXGroup;
 			children = (
 				ACE100000000000000000002 /* Info.plist */,
+				ACE100000000000000000124 /* AceWidget-Info.plist */,
+				ACE100000000000000000125 /* Ace.entitlements */,
+				ACE100000000000000000126 /* AceWidget.entitlements */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -51,6 +122,7 @@
 			isa = PBXGroup;
 			children = (
 				ACE100000000000000000001 /* Ace.app */,
+				ACE100000000000000000100 /* AceWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -65,10 +137,12 @@
 				ACE100000000000000000041 /* Sources */,
 				ACE100000000000000000020 /* Frameworks */,
 				ACE100000000000000000042 /* Resources */,
+				ACE100000000000000000110 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				ACE100000000000000000113 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				ACE100000000000000000010 /* Ace */,
@@ -77,6 +151,23 @@
 			productName = Ace;
 			productReference = ACE100000000000000000001 /* Ace.app */;
 			productType = "com.apple.product-type.application";
+		};
+		ACE100000000000000000103 /* AceWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ACE100000000000000000107 /* Build configuration list for PBXNativeTarget "AceWidgetExtension" */;
+			buildPhases = (
+				ACE100000000000000000104 /* Sources */,
+				ACE100000000000000000105 /* Frameworks */,
+				ACE100000000000000000106 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AceWidgetExtension;
+			productName = AceWidgetExtension;
+			productReference = ACE100000000000000000100 /* AceWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -89,6 +180,9 @@
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					ACE100000000000000000040 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					ACE100000000000000000103 = {
 						CreatedOnToolsVersion = 26.0;
 					};
 				};
@@ -108,12 +202,20 @@
 			projectRoot = "";
 			targets = (
 				ACE100000000000000000040 /* Ace */,
+				ACE100000000000000000103 /* AceWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		ACE100000000000000000042 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ACE100000000000000000106 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -127,17 +229,36 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ACE100000000000000000130 /* WidgetSnapshot.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ACE100000000000000000104 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ACE100000000000000000133 /* AceWidgetBundle.swift in Sources */,
+				ACE100000000000000000132 /* AceWidget.swift in Sources */,
+				ACE100000000000000000134 /* AceWidgetViews.swift in Sources */,
+				ACE100000000000000000131 /* WidgetSnapshot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		ACE100000000000000000113 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = ACE100000000000000000103 /* AceWidgetExtension */;
+			targetProxy = ACE100000000000000000112 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		ACE100000000000000000071 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_ENABLE_MODULES = YES;
@@ -164,18 +285,10 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -184,14 +297,23 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_STRICT_CONCURRENCY = minimal;
 				SWIFT_VERSION = 5.0;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
 		};
@@ -199,7 +321,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_ENABLE_MODULES = YES;
@@ -226,8 +347,6 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -240,12 +359,15 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
-				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_STRICT_CONCURRENCY = minimal;
 				SWIFT_VERSION = 5.0;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -255,9 +377,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/Ace.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Config/Info.plist;
@@ -278,9 +400,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/Ace.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Config/Info.plist;
@@ -291,6 +413,52 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.acestudy.Ace;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		ACE100000000000000000108 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/AceWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Config/AceWidget-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.acestudy.Ace.AceWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		ACE100000000000000000109 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/AceWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Config/AceWidget-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.acestudy.Ace.AceWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -313,6 +481,15 @@
 			buildConfigurations = (
 				ACE100000000000000000051 /* Debug */,
 				ACE100000000000000000052 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		ACE100000000000000000107 /* Build configuration list for PBXNativeTarget "AceWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ACE100000000000000000108 /* Debug */,
+				ACE100000000000000000109 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

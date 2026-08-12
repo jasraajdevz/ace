@@ -58,7 +58,7 @@ fi
 
 # ---------------------------------------------------------------- 2. syntax gate
 
-section "2 · Syntax gate (every Swift file in the app target)"
+section "2 · Syntax gate (every Swift file in both targets)"
 
 SYNTAX_ERRORS=0
 FILE_COUNT=0
@@ -69,7 +69,7 @@ while IFS= read -r file; do
         echo "$OUT" | grep "error:" | sed 's|^|      |' | head -5
         SYNTAX_ERRORS=$((SYNTAX_ERRORS + 1))
     fi
-done < <(find Ace -name "*.swift" -type f | sort)
+done < <(find Ace AceWidget Shared -name "*.swift" -type f | sort)
 
 if [ "$SYNTAX_ERRORS" -eq 0 ]; then
     pass "$FILE_COUNT files parse clean"
@@ -93,11 +93,45 @@ else
     fail "malformed object identifiers: $BAD_IDS"
 fi
 
-if plutil -lint Config/Info.plist >/dev/null 2>&1; then
-    pass "Info.plist is valid"
+# The object GRAPH, not just the syntax: dangling references, missing build
+# phases, files that don't exist, the widget not being embedded, App Groups that
+# don't match. This is the check that catches a project which opens but can't
+# build — see Tools/gen/check_pbxproj.py.
+if STRUCT=$(python3 Tools/gen/check_pbxproj.py 2>&1); then
+    pass "project object graph is sound"
+    echo "$STRUCT" | sed 's|^|    |'
 else
-    fail "Info.plist is malformed"
+    fail "project object graph is broken"
+    echo "$STRUCT" | sed 's|^|      |'
 fi
+
+# Every scheme must point at a target that exists.
+if SCHEMES=$(python3 - <<'PYEOF' 2>&1
+import re, json, subprocess, pathlib, sys
+plist = json.loads(subprocess.run(
+    ["plutil", "-convert", "json", "-o", "-", "Ace.xcodeproj/project.pbxproj"],
+    capture_output=True, text=True).stdout)
+targets = {k for k, v in plist["objects"].items() if v.get("isa") == "PBXNativeTarget"}
+bad = []
+for scheme in sorted(pathlib.Path("Ace.xcodeproj/xcshareddata/xcschemes").glob("*.xcscheme")):
+    for bid in set(re.findall(r'BlueprintIdentifier = "([^"]+)"', scheme.read_text())):
+        if bid not in targets:
+            bad.append(f"{scheme.name}: {bid}")
+if bad:
+    print("\n".join(bad)); sys.exit(1)
+PYEOF
+); then
+    pass "schemes point at real targets"
+else
+    fail "a scheme references a target that does not exist"
+    echo "$SCHEMES" | sed 's|^|      |'
+fi
+
+PLIST_BAD=0
+for plist in Config/*.plist Config/*.entitlements; do
+    plutil -lint "$plist" >/dev/null 2>&1 || { fail "malformed: $plist"; PLIST_BAD=1; }
+done
+[ "$PLIST_BAD" -eq 0 ] && pass "Info.plists and entitlements are valid"
 
 # Every permission the app can trigger must have a usage string, or iOS kills
 # the app the moment it asks.
@@ -109,11 +143,11 @@ for key in NSCameraUsageDescription NSMicrophoneUsageDescription NSSpeechRecogni
     fi
 done
 
-if xmllint --noout Ace.xcodeproj/xcshareddata/xcschemes/Ace.xcscheme 2>/dev/null; then
-    pass "shared scheme is valid XML"
-else
-    fail "shared scheme is malformed"
-fi
+SCHEME_BAD=0
+for scheme in Ace.xcodeproj/xcshareddata/xcschemes/*.xcscheme; do
+    xmllint --noout "$scheme" 2>/dev/null || { fail "malformed scheme: $scheme"; SCHEME_BAD=1; }
+done
+[ "$SCHEME_BAD" -eq 0 ] && pass "shared schemes are valid XML"
 
 # Asset catalogue.
 ASSET_BAD=0

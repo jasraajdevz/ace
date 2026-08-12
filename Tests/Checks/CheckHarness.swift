@@ -73,6 +73,9 @@ enum AllChecks {
             VoiceChecks.all,
             TutorChecks.socratic,
             TutorChecks.mood,
+            QuizRunnerChecks.all,
+            FlashcardRunnerChecks.all,
+            SourceTutorChecks.all,
             DemoDeckChecks.all,
             DesignSystemChecks.all,
         ]

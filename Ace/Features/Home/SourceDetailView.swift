@@ -23,7 +23,35 @@ struct SourceDetailView: View {
     @State private var isEditingNote = false
     @State private var draftNote = ""
     @State private var isConfirmingDelete = false
+    @State private var preparing: StudyMode?
+    @State private var route: StudyRoute?
+    @State private var materialError: String?
     @FocusState private var isNoteFocused: Bool
+
+    /// The three ways into the loop.
+    enum StudyMode: String, Identifiable, CaseIterable {
+        case tutor, quiz, flashcards
+        var id: String { rawValue }
+    }
+
+    /// Where a prepared session sends us. Carries the generated material so the
+    /// destination never has to load anything itself.
+    enum StudyRoute: Identifiable, Hashable {
+        case tutor
+        case quiz(StoredQuiz)
+        case flashcards([StoredFlashcard])
+
+        var id: String {
+            switch self {
+            case .tutor: "tutor"
+            case .quiz(let quiz): "quiz-\(quiz.id)"
+            case .flashcards: "cards"
+            }
+        }
+
+        static func == (lhs: StudyRoute, rhs: StudyRoute) -> Bool { lhs.id == rhs.id }
+        func hash(into hasher: inout Hasher) { hasher.combine(id) }
+    }
 
     var body: some View {
         ZStack {
@@ -33,6 +61,7 @@ struct SourceDetailView: View {
                 VStack(alignment: .leading, spacing: Space.xl) {
                     header
                     noteSection
+                    studyActions
                     keyTermsSection
                     textSection
                 }
@@ -86,7 +115,116 @@ struct SourceDetailView: View {
             source.lastOpenedAt = Date()
             try? modelContext.save()
         }
+        .navigationDestination(item: $route) { route in
+            switch route {
+            case .tutor:
+                TutorView(source: source, gradeLevel: gradeLevel)
+            case .quiz(let quiz):
+                QuizView(source: source, storedQuiz: quiz, gradeLevel: gradeLevel)
+            case .flashcards(let cards):
+                FlashcardView(source: source, storedCards: cards)
+            }
+        }
+        .alert("I couldn't build that",
+               isPresented: Binding(get: { materialError != nil },
+                                    set: { if !$0 { materialError = nil } })) {
+            Button("OK", role: .cancel) { materialError = nil }
+        } message: {
+            Text(materialError ?? "")
+        }
         .safetyNet()
+    }
+
+    /// The grade level to teach at. The profile is the source of truth; this
+    /// screen only has the source, so it reads it from app state.
+    private var gradeLevel: GradeLevel {
+        appState.gradeLevel
+    }
+
+    // MARK: - Study actions
+
+    /// The three entry points into the loop. This is the most important row on
+    /// the screen, so it sits directly under the goal and above everything else.
+    private var studyActions: some View {
+        VStack(spacing: Space.m) {
+            StudyActionCard(
+                symbol: "bubble.left.and.text.bubble.right.fill",
+                title: "Talk it through",
+                detail: "Ace asks the questions. You do the thinking.",
+                tint: Ink.accent,
+                isPreparing: preparing == .tutor,
+                isPrimary: true
+            ) { begin(.tutor) }
+
+            HStack(spacing: Space.m) {
+                StudyActionCard(
+                    symbol: "checklist",
+                    title: "Quiz me",
+                    detail: quizDetail,
+                    tint: Ink.accentAlt,
+                    isPreparing: preparing == .quiz,
+                    isCompact: true
+                ) { begin(.quiz) }
+
+                StudyActionCard(
+                    symbol: "rectangle.on.rectangle",
+                    title: "Flashcards",
+                    detail: flashcardDetail,
+                    tint: Ink.success,
+                    isPreparing: preparing == .flashcards,
+                    isCompact: true
+                ) { begin(.flashcards) }
+            }
+        }
+    }
+
+    private var quizDetail: String {
+        guard let quiz = source.quizzes.first, quiz.attemptCount > 0 else {
+            return "Fresh questions"
+        }
+        return "Best \(Int((quiz.bestScore * 100).rounded()))%"
+    }
+
+    private var flashcardDetail: String {
+        let cards = source.flashcards
+        guard !cards.isEmpty else { return "Build a deck" }
+        let due = cards.filter { $0.reviewState.isDue }.count
+        return due == 0 ? "\(cards.count) cards" : "\(due) due"
+    }
+
+    /// Generate the material if needed, then navigate.
+    ///
+    /// Generation is on-device and fast, but not instant on a long page — so the
+    /// card shows its own spinner rather than blocking the screen, and a failure
+    /// explains itself instead of doing nothing.
+    private func begin(_ mode: StudyMode) {
+        guard preparing == nil else { return }
+        Feedback.press()
+        preparing = mode
+
+        Task {
+            defer { preparing = nil }
+            do {
+                switch mode {
+                case .tutor:
+                    route = .tutor
+                case .quiz:
+                    let quiz = try await StudyMaterialStore.quiz(
+                        for: source, gradeLevel: gradeLevel,
+                        provider: appState.provider, context: modelContext)
+                    route = .quiz(quiz)
+                case .flashcards:
+                    let cards = try await StudyMaterialStore.flashcards(
+                        for: source, gradeLevel: gradeLevel,
+                        provider: appState.provider, context: modelContext)
+                    route = .flashcards(cards)
+                }
+            } catch let error as AIProviderError {
+                materialError = "\(error.errorDescription ?? "") \(error.studentFacingSuggestion)"
+            } catch {
+                materialError = "Something went wrong building that. Try again in a moment."
+            }
+        }
     }
 
     // MARK: - Sections

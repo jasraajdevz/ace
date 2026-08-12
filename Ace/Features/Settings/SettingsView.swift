@@ -353,6 +353,9 @@ struct SettingsView: View {
 
         UserDefaults.standard.removeObject(forKey: "ace.demoContentInstalled")
         try? modelContext.save()
+        // Otherwise the home screen keeps showing a streak for an app with
+        // nothing in it.
+        WidgetBridge.clear()
         Feedback.warning()
         dismiss()
     }

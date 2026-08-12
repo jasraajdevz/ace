@@ -104,6 +104,12 @@ struct HomeView: View {
         .aceAnimation(Motion.smooth, value: appState.safety.concernResponse?.headline)
         .preferredColorScheme(.dark)
         .safetyNet()
+        .task {
+            // Republish on every appearance so the widget can't drift — the day
+            // may have rolled over while the app was closed, turning a "safe"
+            // streak into an "at risk" one.
+            WidgetBridge.refresh(from: modelContext)
+        }
     }
 
     // MARK: - Sections

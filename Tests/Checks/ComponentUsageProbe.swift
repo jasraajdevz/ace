@@ -40,8 +40,82 @@ struct ComponentUsageProbe: View {
                 smallPieces
                 backgrounds
                 safetySurfaces
+                studyLoop
+                celebrationSurfaces
             }
         }
+    }
+
+    // MARK: QuizView, FlashcardView, TutorView, SourceDetailView
+    //
+    // These screens are bound to SwiftData so they can't be type-checked
+    // directly. Their component call sites are mirrored here instead.
+
+    @ViewBuilder private var studyLoop: some View {
+        // QuizView
+        ChoiceRow(text: "Chlorophyll", state: .neutral, isEnabled: true) {}
+        ChoiceRow(text: "Glucose", state: .correct, isEnabled: false) {}
+        ChoiceRow(text: "Stomata", state: .incorrect, isEnabled: false) {}
+        AceReplyBubble(text: "What do you think it's telling you?")
+        AceReplyBubble(text: "It's Chlorophyll.", isHint: false)
+        AceProgressBar(progress: 0.4, height: 6)
+        AceProgressBar(
+            progress: 0.4,
+            height: 6,
+            tint: LinearGradient(colors: [Ink.success, Ink.accentAlt],
+                                 startPoint: .leading, endPoint: .trailing)
+        )
+
+        // FlashcardView
+        FlipCard(front: "What is glucose?", back: "The sugar plants store as food.",
+                 context: "From the source.", isRevealed: false, flip: 0)
+        FlipCard(front: "F", back: "B", context: nil, isRevealed: true, flip: 180)
+        GradeButton(grade: .forgot, tint: Ink.danger) {}
+        GradeButton(grade: .hard, tint: Ink.warning) {}
+        GradeButton(grade: .easy, tint: Ink.success) {}
+
+        // TutorView
+        TurnBubble(turn: TutorTurn(speaker: .ace, text: "What do you already know?"))
+        TurnBubble(turn: TutorTurn(speaker: .student, text: "Not much honestly"))
+        TurnBubble(turn: TutorTurn(speaker: .ace, text: "Try this line.", isHint: true))
+        ThinkingIndicator()
+        QuickReply(title: "I don't know", systemImage: "questionmark") {}
+        QuickReply(title: "Just tell me", systemImage: "arrow.right.to.line") {}
+
+        // SourceDetailView
+        StudyActionCard(symbol: "bubble.left.and.text.bubble.right.fill",
+                        title: "Talk it through",
+                        detail: "Ace asks the questions.",
+                        tint: Ink.accent,
+                        isPreparing: false,
+                        isPrimary: true) {}
+        StudyActionCard(symbol: "checklist", title: "Quiz me", detail: "Fresh questions",
+                        tint: Ink.accentAlt, isPreparing: true, isCompact: true) {}
+
+        // Results screens (these two ARE compiled, so this is a call-shape check)
+        QuizResultsView(
+            result: QuizResult(quizID: UUID(), correctCount: 4, totalCount: 6,
+                               missedQuestionIDs: [UUID()], elapsed: 92),
+            followUp: Quiz(title: "Follow up", questions: []),
+            sessionXP: 120,
+            onRedoMissed: {},
+            onDone: {}
+        )
+        FlashcardResultsView(
+            summary: FlashcardSummary(deckSize: 8, reviewed: 8, easy: 5, hard: 2, forgotten: 1),
+            sessionXP: 60,
+            onDone: {}
+        )
+    }
+
+    // MARK: The reward moments
+
+    @ViewBuilder private var celebrationSurfaces: some View {
+        XPToast(amount: 12, caption: "Correct")
+        ParticleBurst()
+        ParticleBurst(count: 40, duration: 1.2, gravity: 500, seed: 7)
+        LevelUpView(level: 5, title: "Warmed up", progress: 0.2) {}
+        Color.clear.celebrations(CelebrationCenter())
     }
 
     // MARK: OnboardingView, CaptureView, SourceReviewView, SettingsView
