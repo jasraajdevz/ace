@@ -9,7 +9,7 @@ bottom.
 
 ---
 
-## What's here right now (Parts 1–2 of 5)
+## What's here right now (Parts 1–3 of 5)
 
 - **Onboarding** — name, year, subjects, and a voice you pick by listening to it
 - **Capture** — scan a document, take a photo, pick from your library, or paste
@@ -23,13 +23,17 @@ bottom.
 - **Progression** — XP for effort (not just for being right), levels, a streak
   with a free repair, and a level-up worth screen-recording
 - **Home-screen widget** — small and medium: level, streak, and one warm nudge
+- **Talk out loud** — tap the mic and speak. Ace listens, matches your pace and
+  energy, and stops the instant you start talking
+- **Live Mode** — add an OpenAI key for realtime voice, with a connection
+  self-test and a latency HUD that shows the real numbers
 - **The crisis safety net** — always on, everywhere, with 249 dedicated checks
 - **Two bundled demo decks** so the app has something real in it on first launch
 
 Everything runs with **no account, no API key, and no network**.
 
-Coming in Parts 3–5: live realtime voice over WebRTC, the study-companion and
-guardian features, and Anywhere Mode.
+Coming in Parts 4–5: the study-companion and guardian features, focus music,
+speaking drills, and Anywhere Mode.
 
 ---
 
@@ -109,16 +113,29 @@ You need a free Apple ID. No paid developer account.
 
 ---
 
-## Where the OpenAI key goes (Part 3)
+## Where the OpenAI key goes
 
 **You don't need one and nothing is blocked without one.** Ace ships in **Demo
 Mode**: voice from the system speech synthesiser, reading from Apple's on-device
 Vision framework, quizzes and flashcards from local text analysis. Free, private,
-works on a plane.
+works on a plane. Even the microphone works — speech is transcribed on-device.
 
-In Part 3, **Settings ▸ How Ace runs** gains a key field and a Demo → Live
-toggle. The key will be stored in the **iOS Keychain** — never in the code,
-never in this repo, never in a file. There is nothing to paste anywhere today.
+If you want the faster, more natural realtime voice:
+
+1. Get a key from **platform.openai.com ▸ API keys** (it starts with `sk-`).
+   It needs Realtime API access and a little credit on the account.
+2. In Ace: **Settings ▸ How Ace runs ▸ Add an OpenAI key**, paste, **Save**.
+3. Ace tests the connection immediately and shows you what it measured.
+
+The key goes into the **iOS Keychain** — never into the code, never into this
+repo, never into a file, and never synced to iCloud. Ace never shows it back to
+you; Settings displays a fingerprint like `sk-proj-…a91f` so you can tell which
+key is installed. Switch back to on-device any time with the toggle, and Ace
+falls back on its own if the connection drops mid-sentence.
+
+**What it costs you:** Live Mode bills against your own OpenAI account by the
+minute of audio. Demo Mode costs nothing. Part 5 adds usage metering so you can
+see exactly what a session used.
 
 The seam that makes this possible is `AIProvider`
 ([Ace/Core/AI/AIProvider.swift](Ace/Core/AI/AIProvider.swift)) — one protocol
@@ -148,7 +165,7 @@ There's a full verification suite that runs **without Xcode**:
 cd ~/Downloads/ace && ./Tools/verify.sh
 ```
 
-It compiles the logic layers against the macOS SDK, runs 1,584 assertions,
+It compiles the logic layers against the macOS SDK, runs 1,844 assertions,
 parses every Swift file in both targets, and validates the Xcode project's whole
 object graph — dangling references, missing build phases, whether the app
 actually embeds the widget, whether the App Group matches on both sides. It
@@ -181,7 +198,8 @@ cd ~/Downloads/ace && python3 Tools/gen/build_pbxproj.py && python3 Tools/gen/ch
 Ace/
 ├── Core/            Pure Swift. No SwiftUI, no UIKit, no database.
 │   ├── Safety/      The crisis net (§10) — the most tested code here
-│   ├── AI/          The AIProvider protocol, Socratic engine, mood heuristics
+│   ├── AI/          AIProvider, Socratic engine, realtime protocol, latency,
+│   │                mood heuristics and voice matching
 │   ├── Study/       Quiz + flashcard generation, XP, levels, streaks, SRS
 │   ├── Text/        OCR cleanup and phrase splitting
 │   └── Model/       Value types: grade levels, subjects, moods, voices

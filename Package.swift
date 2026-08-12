@@ -40,7 +40,7 @@ let package = Package(
                 "Ace/Features/Study/QuizView.swift",
                 "Ace/Features/Study/FlashcardView.swift",
                 "Ace/Features/Study/TutorView.swift",
-                "Ace/Features/Settings",
+                "Ace/Features/Settings/SettingsView.swift",
                 "Ace/AceApp.swift",
                 // `@main` is exclusive and this target already has a main.swift.
                 "AceWidget/AceWidgetBundle.swift",
@@ -63,6 +63,7 @@ let package = Package(
                 // of a mixed folder can still be type-checked.
                 "Ace/Features/Study/QuizResultsView.swift",
                 "Ace/Features/Study/FlashcardResultsView.swift",
+                "Ace/Features/Settings/LiveModeSettings.swift",
                 "Tests/Checks",       // the assertions
                 "Tools/VerifyMain",   // the runner's entry point
             ]

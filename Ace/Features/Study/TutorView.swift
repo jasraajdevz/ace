@@ -40,6 +40,7 @@ struct TutorView: View {
     @State private var exchanges = 0
     @State private var isThinking = false
     @State private var streamedText = ""
+    @State private var voice = VoiceSessionController()
     @FocusState private var isComposerFocused: Bool
 
     var body: some View {
@@ -54,6 +55,10 @@ struct TutorView: View {
         .navigationTitle(source.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                ConnectionIndicator(quality: appState.connectionQuality,
+                                    isLive: appState.providerMode == .live)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 if appState.isSpeaking {
                     Button {
@@ -70,7 +75,14 @@ struct TutorView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .celebrations(celebrations)
         .safetyNet()
-        .task { start() }
+        .task {
+            start()
+            // Open the realtime session now, not when they first speak. This is
+            // the single biggest contributor to hitting the §7 TTFA budget.
+            await appState.prewarmVoice(subject: source.subject,
+                                        sourceText: source.cleanedText,
+                                        studentNote: source.studentNote)
+        }
         .onDisappear { leave() }
     }
 
@@ -150,7 +162,12 @@ struct TutorView: View {
         VStack(spacing: Space.s) {
             // One-tap shortcuts for the two things students say most, so being
             // stuck never requires composing a sentence.
-            if !isThinking {
+            if voice.isListening {
+                VoiceListeningBar(level: voice.level,
+                                  isStudentSpeaking: voice.isStudentSpeaking) {
+                    toggleVoice()
+                }
+            } else if !isThinking {
                 HStack(spacing: Space.s) {
                     QuickReply(title: "I don't know", systemImage: "questionmark") {
                         send("I don't know")
@@ -162,7 +179,31 @@ struct TutorView: View {
                 }
             }
 
+            if let problem = voice.problem {
+                Text(problem)
+                    .font(Typeface.caption)
+                    .foregroundStyle(Ink.warning)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             HStack(spacing: Space.m) {
+                // Talking is the point of the product, so the mic sits to the
+                // left of the composer rather than hidden behind a menu.
+                Button(action: toggleVoice) {
+                    Image(systemName: voice.isListening ? "mic.fill" : "mic")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(voice.isListening ? Ink.textOnAccent : Ink.textSecondary)
+                        .frame(width: 44, height: 44)
+                        .background(voice.isListening ? AnyShapeStyle(Ink.brandGradient)
+                                                      : AnyShapeStyle(Ink.surface),
+                                    in: Circle())
+                        .overlay(Circle().strokeBorder(
+                            voice.isListening ? .clear : Ink.stroke, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(voice.isListening ? "Stop talking" : "Talk out loud"))
+
                 TextField("", text: $draft, axis: .vertical,
                           prompt: Text("Say what you're thinking…").foregroundStyle(Ink.textTertiary))
                     .font(Typeface.body)
@@ -201,6 +242,7 @@ struct TutorView: View {
         .padding(.vertical, Space.m)
         .background(.ultraThinMaterial)
         .aceAnimation(Motion.snappy, value: isThinking)
+        .aceAnimation(Motion.smooth, value: voice.isListening)
     }
 
     // MARK: - Conversation
@@ -249,7 +291,10 @@ struct TutorView: View {
 
         // Read the room before replying, so the wording matches how they sound.
         appState.signals.hintsTaken = exchanges
-        await appState.updateMood(text: message)
+        await appState.updateMood(text: message,
+                                  subject: source.subject,
+                                  sourceText: source.cleanedText,
+                                  studentNote: source.studentNote)
 
         let intent = SourceTutor.intent(of: message)
         let reply = SourceTutor.reply(
@@ -289,7 +334,27 @@ struct TutorView: View {
 
     private func leave() {
         recorder?.finish(mood: appState.mood.mood)
-        Task { await appState.stopSpeaking() }
+        Task {
+            await voice.stop()
+            await appState.stopSpeaking()
+            await appState.endVoiceSession()
+        }
+    }
+
+    /// Start or stop talking out loud.
+    private func toggleVoice() {
+        Task {
+            if voice.isListening {
+                await voice.stop()
+                Feedback.tap()
+            } else {
+                // Cut Ace off the instant the student decides to talk — the
+                // manual half of barge-in (§7).
+                await appState.stopSpeaking()
+                let started = await voice.start(appState: appState)
+                started ? Feedback.press() : Feedback.warning()
+            }
+        }
     }
 
     private func scroll(_ proxy: ScrollViewProxy) {

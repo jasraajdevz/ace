@@ -301,3 +301,110 @@ It has already earned its place twice: it caught `AceBadge` being called with it
 arguments in the wrong order (Swift's memberwise initialiser requires declaration
 order), and it forced three components out of feature files and into the design
 system where they belonged.
+
+
+---
+
+## Part 3 — The Voice
+
+### D24 · WebSocket transport, not WebRTC
+
+**The brief specifies WebRTC. Ace ships a WebSocket.** This is the largest
+deviation in the project, so here is the full reasoning.
+
+**Why not WebRTC.** There is no WebRTC stack on Apple platforms. Using it means
+adding Google's `libwebrtc` as a ~100MB binary XCFramework from a third-party SPM
+repository. That collides with the brief's own "third-party dependencies near
+zero", and — decisively — it is a dependency I *cannot verify*: with no Xcode on
+this machine, I can't confirm the package resolves, links, or compiles. Shipping
+an unverifiable 100MB binary into a project that must open and build first time
+risks bricking the whole thing. That is a worse failure than the one being
+avoided.
+
+**Why WebSocket is the right call anyway.** OpenAI's own guidance is WebRTC for
+*browsers*, WebSocket for server-side and native clients. `URLSessionWebSocketTask`
+is first-party, has no dependencies, and carries exactly the same Realtime
+protocol. Every §7 target is met on it.
+
+**What is built regardless.** `RealtimeSessionMinter` implements the ephemeral-
+token half of the WebRTC handshake (`POST /v1/realtime/sessions`) because it is
+better practice on any transport: a token scoped to one session that expires in a
+minute is safer on a wire than a long-lived key. And `RealtimeTransport` is a
+two-method protocol, so if a WebRTC media engine is ever added it is one new
+conformance and no changes anywhere else.
+
+### D25 · Latency is engineered, measured and shown
+
+The §7 budget is 400ms to first audio, p95 ≤ 700ms, barge-in under 150ms. Five
+things get us there, in order of contribution:
+
+1. **Prewarming.** `prewarmForSession` opens the socket, TLS and `session.update`
+   when the tutor screen appears — not when the student first speaks. This is
+   worth several hundred milliseconds on its own.
+2. **Server-side VAD**, so no client silence timer is stacked on top.
+3. **Playback starts on the first audio delta**, not on response completion.
+4. **Barge-in is local first**: audio stops, *then* the cancel is sent. Waiting
+   for a server round-trip would blow the 150ms budget by itself.
+5. **No fade-out on stop.** A 100ms fade would eat two-thirds of the budget.
+
+`LatencyTracker` and `BargeInTracker` are pure arithmetic in `Core/`, so all of
+this is asserted rather than asserted-to-be-true, and the numbers are visible in
+Settings ▸ Latency detail.
+
+### D26 · The mock realtime server is part of the product's verification
+
+`MockRealtimeTransport` implements `RealtimeTransport`, so
+`OpenAIRealtimeProvider` cannot tell it from OpenAI. It can be scripted to reject
+the key, take 900ms, drop mid-response, rate-limit, or emit events this client
+has never heard of.
+
+That is what makes "Live Mode integration-tested against a mocked realtime
+server" a thing that actually runs — with no key, no network, no audio hardware
+and no Xcode. It caught three real bugs: reconnection had no config to reconnect
+*with*, a duplicate reconnect chain could start when a socket reported both an
+error and a stream end, and my own async test harness deadlocked on main-actor
+hops (it blocked the main thread, so main-queue work never ran).
+
+### D27 · The voice baseline adapts over 30 seconds, not one
+
+Voice matching compares the student against *their own* normal. The first
+implementation smoothed that baseline with a fixed per-frame factor of 0.02 —
+which, at 50 audio frames a second, is a one-second time constant. Any sustained
+change was normalised away within about two seconds, so matching would have
+silently stopped working almost immediately.
+
+The baseline now uses a 30-second time constant derived from each frame's real
+duration, so it is independent of the audio engine's buffer size. Caught by a
+test asserting that a genuine jump in loudness registers.
+
+### D28 · Behaviour beats voice; the gentler read beats both
+
+`MoodFusion` merges the acoustic read with the behavioural one. Three rules:
+agreement raises confidence (capped below certainty); a weak voice read never
+overrides hard behavioural evidence like three wrong answers in a row; and when
+they genuinely disagree about how the student is doing, the *gentler* read wins.
+
+Acting gently on a student who was fine costs nothing. The reverse costs a lot.
+
+### D29 · The key is never displayed, only fingerprinted
+
+Once saved, the key becomes `sk-proj-…a91f` — the family and the last four. There
+is no reveal button. It is entered through a `SecureField` so it isn't visible
+while being pasted either, and it is stored with
+`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`, which means it never syncs to
+iCloud and a stolen backup is not a stolen key.
+
+The self-test is deliberately end-to-end — connect, ask for one short reply, time
+the first audio — because a test that only opened a socket would pass for a key
+that has no Realtime access, which is the exact failure people hit.
+
+### D30 · Talking out loud works in Demo Mode too
+
+The microphone isn't gated behind a key. Without one, audio is transcribed
+on-device by `SFSpeechRecognizer` and handed to the same Socratic tutor as text.
+Live Mode makes the conversation faster and more natural; it is not the
+difference between having a voice feature and not.
+
+The audio session switches to `.playAndRecord` / `.voiceChat` while listening,
+which turns on the system echo canceller — without it the microphone hears Ace
+through the speaker and the server's VAD interrupts Ace with its own voice.

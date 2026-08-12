@@ -19,11 +19,21 @@ final class AppState {
 
     // MARK: Provider
 
-    /// The live AI provider. Swapping this is how Demo → Live works, and
-    /// nothing above this line needs to know it happened.
-    private(set) var provider: AIProvider
+    /// Owns the Demo ↔ Live switch. Screens never touch this — they read
+    /// `provider`, which is whatever is currently correct.
+    let providers: ProviderController
+
+    /// The AI provider in use right now.
+    var provider: AIProvider { providers.current }
 
     var providerMode: AIProviderMode { provider.mode }
+
+    /// The live provider's connection quality, when Live Mode is up.
+    var connectionQuality: ConnectionQuality {
+        providers.live?.connectionQuality ?? .offline
+    }
+
+    var isLiveAvailable: Bool { providers.live?.isReady ?? false }
 
     // MARK: The student
 
@@ -62,8 +72,12 @@ final class AppState {
 
     // MARK: Init
 
-    init(provider: AIProvider = MockAIProvider()) {
-        self.provider = provider
+    /// `providers` is optional rather than defaulted: a default argument is
+    /// evaluated at the *call site*, which may be nonisolated, and
+    /// `ProviderController` is main-actor isolated. Building it inside the
+    /// (isolated) initialiser keeps that correct.
+    init(providers: ProviderController? = nil) {
+        self.providers = providers ?? ProviderController()
         self.safety = SafetyCoordinator()
     }
 
@@ -118,10 +132,36 @@ final class AppState {
     // MARK: Mood
 
     /// Update the mood read and ease delivery toward it.
-    func updateMood(text: String? = nil) async {
+    ///
+    /// In Live Mode this also re-configures the realtime session, so the model's
+    /// own delivery and turn-taking follow how the student sounds (§9) — not
+    /// just the local speech synthesiser's.
+    func updateMood(text: String? = nil,
+                    subject: Subject? = nil,
+                    sourceText: String = "",
+                    studentNote: String = "") async {
         let reading = await provider.readEmotion(audio: nil, text: text, signals: signals)
+        guard reading != mood else { return }
         mood = reading
         prosody = ProsodyMatcher.next(current: prosody, base: persona.baseProsody, reading: reading)
+
+        if reading.isActionable {
+            await providers.adapt(to: reading, settings: settings, subject: subject,
+                                  sourceText: sourceText, studentNote: studentNote)
+        }
+    }
+
+    /// Open the realtime session before the student needs it — the single
+    /// biggest contributor to hitting the §7 latency budget.
+    func prewarmVoice(subject: Subject?, sourceText: String, studentNote: String) async {
+        _ = await providers.prewarmForSession(
+            settings: settings, subject: subject,
+            sourceText: sourceText, studentNote: studentNote, mood: mood
+        )
+    }
+
+    func endVoiceSession() async {
+        await providers.endSession()
     }
 
     /// Reset per-session behavioural signals.

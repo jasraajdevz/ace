@@ -34,6 +34,24 @@ final class CheckRun {
         }
     }
 
+    /// Assert two measurements are equal within a tolerance.
+    ///
+    /// Timings derived from `Date` arithmetic are `Double`s that carry rounding
+    /// error, so exact equality on them tests floating-point representation
+    /// rather than behaviour.
+    func expectClose(_ actual: Double?, _ expected: Double, tolerance: Double = 0.001,
+                     _ message: @autoclosure () -> String = "",
+                     file: StaticString = #file, line: UInt = #line) {
+        let label = message().isEmpty ? "" : "\(message()): "
+        guard let actual else {
+            expect(false, "\(label)expected ≈\(expected), got nil", file: file, line: line)
+            return
+        }
+        expect(abs(actual - expected) <= tolerance,
+               "\(label)expected ≈\(expected) (±\(tolerance)), got \(actual)",
+               file: file, line: line)
+    }
+
     /// Assert equality, printing both sides on failure.
     func expectEqual<T: Equatable>(_ actual: T, _ expected: T,
                                    _ message: @autoclosure () -> String = "",
@@ -76,6 +94,15 @@ enum AllChecks {
             QuizRunnerChecks.all,
             FlashcardRunnerChecks.all,
             SourceTutorChecks.all,
+            RealtimeProtocolChecks.all,
+            RealtimeInstructionChecks.all,
+            LatencyChecks.all,
+            VoiceMatchingChecks.all,
+            KeyChecks.all,
+            RealtimeIntegrationChecks.connection,
+            RealtimeIntegrationChecks.conversation,
+            RealtimeIntegrationChecks.bargeIn,
+            RealtimeIntegrationChecks.resilience,
             DemoDeckChecks.all,
             DesignSystemChecks.all,
         ]

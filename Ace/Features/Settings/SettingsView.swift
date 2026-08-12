@@ -69,38 +69,10 @@ struct SettingsView: View {
 
     // MARK: - How Ace runs
 
+    /// The key, the Demo ↔ Live switch, the self-test and the latency HUD all
+    /// live in `LiveModeSettings.swift`.
     private var modeSection: some View {
-        VStack(alignment: .leading, spacing: Space.m) {
-            AceSectionHeader(title: "How Ace runs")
-
-            AceCard {
-                VStack(alignment: .leading, spacing: Space.m) {
-                    HStack(spacing: Space.m) {
-                        Image(systemName: appState.providerMode == .demo ? "iphone" : "bolt.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(appState.providerMode == .demo ? Ink.success : Ink.accent)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.providerMode.displayName)
-                                .font(Typeface.bodyEmphasis)
-                                .foregroundStyle(Ink.textPrimary)
-                            Text(appState.providerMode.detail)
-                                .font(Typeface.caption)
-                                .foregroundStyle(Ink.textSecondary)
-                        }
-                        Spacer(minLength: 0)
-                        AceBadge(text: "Active", tint: Ink.success)
-                    }
-
-                    Divider().overlay(Ink.stroke)
-
-                    Text("Everything works without an account or a key. Connecting an OpenAI key later makes the voice faster and more conversational — that arrives in a future update.")
-                        .font(Typeface.caption)
-                        .foregroundStyle(Ink.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .accessibilityElement(children: .contain)
-        }
+        LiveModeSection(controller: appState.providers)
     }
 
     // MARK: - Voice

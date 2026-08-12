@@ -42,6 +42,7 @@ struct ComponentUsageProbe: View {
                 safetySurfaces
                 studyLoop
                 celebrationSurfaces
+                voiceSurfaces
             }
         }
     }
@@ -106,6 +107,18 @@ struct ComponentUsageProbe: View {
             sessionXP: 60,
             onDone: {}
         )
+    }
+
+    // MARK: Live Mode — Settings, the HUD, the listening bar
+
+    @ViewBuilder private var voiceSurfaces: some View {
+        LiveModeSection(controller: ProviderController())
+        LatencyHUD(latency: LatencyTracker(), bargeIn: BargeInTracker(),
+                   quality: .good, model: RealtimeModel.default)
+        ConnectionIndicator(quality: .poor, isLive: true)
+        ConnectionIndicator(quality: .good, isLive: false)
+        VoiceListeningBar(level: 0.4, isStudentSpeaking: true) {}
+        VoiceListeningBar(level: 0, isStudentSpeaking: false) {}
     }
 
     // MARK: The reward moments
