@@ -1,0 +1,224 @@
+{
+  "flashcards" : [
+    {
+      "back" : "Searching for the weights that minimise it",
+      "context" : "Training means searching for the weights that minimise it.",
+      "front" : "What is Training?",
+      "id" : "E6EE6CBF-EE5C-4472-8DB5-73DD0983DA2F"
+    },
+    {
+      "back" : "Nonlinearity that lets a network represent relationships a straight line cannot",
+      "context" : "The activation function is the nonlinearity that lets a network represent relationships a straight line cannot.",
+      "front" : "What is the activation function?",
+      "id" : "9B670589-AE44-4AA0-8831-8930816F09E6"
+    },
+    {
+      "back" : "Algorithm that computes those gradients efficiently by applying the chain rule backwards through the network",
+      "context" : "Backpropagation is the algorithm that computes those gradients efficiently by applying the chain rule backwards through the network.",
+      "front" : "What is Backpropagation?",
+      "id" : "7518578B-B0B6-4748-A8E6-7FC359C76E2F"
+    },
+    {
+      "back" : "Optimisation procedure that repeatedly steps each weight in the direction that most reduces the loss",
+      "context" : "Gradient descent is the optimisation procedure that repeatedly steps each weight in the direction that most reduces the loss.",
+      "front" : "What is Gradient descent?",
+      "id" : "D491A1F5-ECE6-440E-B823-4E96F5405530"
+    },
+    {
+      "back" : "Hyperparameter that scales each update step",
+      "context" : "The learning rate is the hyperparameter that scales each update step.",
+      "front" : "What is the learning rate?",
+      "id" : "5043D936-998F-4978-9325-AB7B48C2F24A"
+    },
+    {
+      "back" : "Scalar measure of how wrong a prediction is",
+      "context" : "The loss function is the scalar measure of how wrong a prediction is.",
+      "front" : "What is the loss function?",
+      "id" : "B33D0816-55F7-44DD-B5A7-FCAA26E75C3C"
+    },
+    {
+      "back" : "Failure mode where a model memorises the training set and generalises poorly to data it has not seen",
+      "context" : "Overfitting is the failure mode where a model memorises the training set and generalises poorly to data it has not seen.",
+      "front" : "What is Overfitting?",
+      "id" : "1AB77CA8-76CB-49FD-AAE9-6875D4742B78"
+    },
+    {
+      "back" : "Simplest form of an artificial neuron",
+      "context" : "A perceptron is the simplest form of an artificial neuron.",
+      "front" : "What is the perceptron?",
+      "id" : "5D43656A-1B50-460D-B4E2-BA330B9CBD7A"
+    },
+    {
+      "back" : "Activation function that returns the input when it is positive and zero otherwise, and it is the default choice in most modern architectures",
+      "context" : "ReLU is the activation function that returns the input when it is positive and zero otherwise, and it is the default choice in most modern architectures.",
+      "front" : "What is ReLU?",
+      "id" : "6319B019-C07A-48E4-8DDF-7A4DD089B594"
+    },
+    {
+      "back" : "function",
+      "context" : "It computes a weighted sum of its inputs, adds a bias term, and passes the result through an activation function to produce an output.",
+      "front" : "It computes a weighted sum of its inputs, adds a bias term, and passes the result through an activation ________ to produce an output.",
+      "id" : "49030A79-A81D-4C81-87BC-73437E083FDF"
+    },
+    {
+      "back" : "activation",
+      "context" : "It computes a weighted sum of its inputs, adds a bias term, and passes the result through an activation function to produce an output.",
+      "front" : "It computes a weighted sum of its inputs, adds a bias term, and passes the result through an ________ function to produce an output.",
+      "id" : "156DC10B-36BA-4F08-B4E0-3ABDA48A4B7D"
+    },
+    {
+      "back" : "network",
+      "context" : "The activation function is the nonlinearity that lets a network represent relationships a straight line cannot.",
+      "front" : "The activation function is the nonlinearity that lets a ________ represent relationships a straight line cannot.",
+      "id" : "95465DC3-8859-4693-AB4B-8438DF7A0566"
+    }
+  ],
+  "gradeLevel" : "college",
+  "id" : "demo_neural_networks",
+  "quiz" : {
+    "id" : "E376D8B7-2FF8-4570-AC8A-3BE7BD2D96B0",
+    "questions" : [
+      {
+        "choices" : [
+          "Perceptron",
+          "Function",
+          "Training",
+          "Overfitting"
+        ],
+        "correctIndex" : 2,
+        "explanation" : "Training — Searching for the weights that minimise it.",
+        "hints" : [
+          "Think about the part that deals with means.",
+          "It starts with “T” and it's 8 letters.",
+          "It's the one that means: Searching for the weights that minimise it."
+        ],
+        "id" : "637E317E-2B62-4688-ADF4-C58872115DF1",
+        "prompt" : "Which term does this describe?\n\n“Searching for the weights that minimise it”"
+      },
+      {
+        "choices" : [
+          "Activation function",
+          "Overfitting",
+          "Learning rate",
+          "Backpropagation"
+        ],
+        "correctIndex" : 0,
+        "explanation" : "Activation function — Nonlinearity that lets a network represent relationships a straight line cannot.",
+        "hints" : [
+          "Think about the part that deals with activation.",
+          "It's 2 words, and it starts with “A”.",
+          "It's the one that means: Nonlinearity that lets a network represent relationships a straight line cannot."
+        ],
+        "id" : "F8E4C047-015D-4A9D-8B53-F2D66529C917",
+        "prompt" : "Which term does this describe?\n\n“Nonlinearity that lets a network represent relationships a straight line cannot”"
+      },
+      {
+        "choices" : [
+          "Backpropagation",
+          "Gradient descent",
+          "Training",
+          "Perceptron"
+        ],
+        "correctIndex" : 0,
+        "explanation" : "Backpropagation — Algorithm that computes those gradients efficiently by applying the chain rule backwards through the network.",
+        "hints" : [
+          "Think about the part that deals with algorithm.",
+          "It starts with “B” and it's 15 letters.",
+          "It's the one that means: Algorithm that computes those gradients efficiently by applying the chain rule backwards through the network."
+        ],
+        "id" : "9C191CBB-E277-458E-8C50-8AC5D686D9C5",
+        "prompt" : "Which term does this describe?\n\n“Algorithm that computes those gradients efficiently by applying the chain rule backwards through the network”"
+      },
+      {
+        "choices" : [
+          "Learning rate",
+          "Activation function",
+          "Gradient descent",
+          "Overfitting"
+        ],
+        "correctIndex" : 2,
+        "explanation" : "Gradient descent — Optimisation procedure that repeatedly steps each weight in the direction that most reduces the loss.",
+        "hints" : [
+          "Think about the part that deals with gradient.",
+          "It's 2 words, and it starts with “G”.",
+          "It's the one that means: Optimisation procedure that repeatedly steps each weight in the direction that most reduces the loss."
+        ],
+        "id" : "AAB6F7BE-A603-4ABA-AD6B-400A8706324E",
+        "prompt" : "Which term does this describe?\n\n“Optimisation procedure that repeatedly steps each weight in the direction that most reduces the loss”"
+      },
+      {
+        "choices" : [
+          "Learning rate",
+          "Function",
+          "Loss function",
+          "Perceptron"
+        ],
+        "correctIndex" : 0,
+        "explanation" : "Learning rate — Hyperparameter that scales each update step.",
+        "hints" : [
+          "Think about the part that deals with learning.",
+          "It's 2 words, and it starts with “L”.",
+          "It's the one that means: Hyperparameter that scales each update step."
+        ],
+        "id" : "70318E1F-2032-4C41-B7F7-982DF2420737",
+        "prompt" : "Which term does this describe?\n\n“Hyperparameter that scales each update step”"
+      },
+      {
+        "choices" : [
+          "Learning rate",
+          "Backpropagation",
+          "Perceptron",
+          "Loss function"
+        ],
+        "correctIndex" : 3,
+        "explanation" : "Loss function — Scalar measure of how wrong a prediction is.",
+        "hints" : [
+          "Think about the part that deals with function.",
+          "It's 2 words, and it starts with “L”.",
+          "It's the one that means: Scalar measure of how wrong a prediction is."
+        ],
+        "id" : "9BB78D3D-52FA-4A90-92C3-232CC1DF906F",
+        "prompt" : "Which term does this describe?\n\n“Scalar measure of how wrong a prediction is”"
+      },
+      {
+        "choices" : [
+          "Gradient descent",
+          "Overfitting",
+          "Perceptron",
+          "ReLU"
+        ],
+        "correctIndex" : 1,
+        "explanation" : "Overfitting — Failure mode where a model memorises the training set and generalises poorly to data it has not seen.",
+        "hints" : [
+          "Think about the part that deals with failure.",
+          "It starts with “O” and it's 11 letters.",
+          "It's the one that means: Failure mode where a model memorises the training set and generalises poorly to data it has not seen."
+        ],
+        "id" : "27C3C04C-2C71-48DE-BF43-DDBB723E0F28",
+        "prompt" : "Which term does this describe?\n\n“Failure mode where a model memorises the training set and generalises poorly to data it has not seen”"
+      },
+      {
+        "choices" : [
+          "Perceptron",
+          "Function",
+          "Network",
+          "Training"
+        ],
+        "correctIndex" : 0,
+        "explanation" : "Perceptron — Simplest form of an artificial neuron.",
+        "hints" : [
+          "Think about the part that deals with simplest.",
+          "It starts with “P” and it's 10 letters.",
+          "It's the one that means: Simplest form of an artificial neuron."
+        ],
+        "id" : "5882AA76-A032-4134-AB3B-F49373302684",
+        "prompt" : "Which term does this describe?\n\n“Simplest form of an artificial neuron”"
+      }
+    ],
+    "title" : "Neural Networks: The Basics"
+  },
+  "sourceText" : "A perceptron is the simplest form of an artificial neuron. It computes a weighted sum of its inputs, adds a bias term, and passes the result through an activation function to produce an output.\n\nThe activation function is the nonlinearity that lets a network represent relationships a straight line cannot. Without it, stacking layers would be pointless: a composition of linear maps is itself a linear map. ReLU is the activation function that returns the input when it is positive and zero otherwise, and it is the default choice in most modern architectures.\n\nThe loss function is the scalar measure of how wrong a prediction is. Training means searching for the weights that minimise it. Gradient descent is the optimisation procedure that repeatedly steps each weight in the direction that most reduces the loss.\n\nBackpropagation is the algorithm that computes those gradients efficiently by applying the chain rule backwards through the network. It reuses the intermediate values from the forward pass, which is why training a deep network costs roughly twice a forward pass rather than growing with depth squared.\n\nThe learning rate is the hyperparameter that scales each update step. Set it too high and the optimiser overshoots and diverges. Set it too low and training crawls. Overfitting is the failure mode where a model memorises the training set and generalises poorly to data it has not seen.",
+  "subject" : "cs",
+  "subtitle" : "College · intro machine learning",
+  "title" : "Neural Networks: The Basics"
+}

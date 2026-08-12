@@ -1,0 +1,172 @@
+{
+  "flashcards" : [
+    {
+      "back" : "Process that plants use to make their own food",
+      "context" : "Photosynthesis is the process that plants use to make their own food.",
+      "front" : "What is Photosynthesis?",
+      "id" : "49FCD434-F19A-4C9A-A76C-5F79CCF6BEBE"
+    },
+    {
+      "back" : "Green pigment inside a leaf that captures energy from sunlight",
+      "context" : "Chlorophyll is the green pigment inside a leaf that captures energy from sunlight.",
+      "front" : "What is Chlorophyll?",
+      "id" : "44A82CFC-6C72-4D31-92FB-91B331678764"
+    },
+    {
+      "back" : "Sugar that the plant makes and stores as food",
+      "context" : "Glucose is the sugar that the plant makes and stores as food.",
+      "front" : "What is Glucose?",
+      "id" : "8C29832F-7F98-4E28-8C5C-5AADEAD73394"
+    },
+    {
+      "back" : "Tiny part of a plant cell where photosynthesis happens",
+      "context" : "The chloroplast is the tiny part of a plant cell where photosynthesis happens.",
+      "front" : "What is the chloroplast?",
+      "id" : "B49EED81-B387-4D3E-9ACE-64A36533CACF"
+    },
+    {
+      "back" : "plants",
+      "context" : "Photosynthesis is the process that plants use to make their own food.",
+      "front" : "Photosynthesis is the process that ________ use to make their own food.",
+      "id" : "51FCDA8C-D269-439B-825F-038EE38A9A2D"
+    },
+    {
+      "back" : "energy",
+      "context" : "Chlorophyll is the green pigment inside a leaf that captures energy from sunlight.",
+      "front" : "Chlorophyll is the green pigment inside a leaf that captures ________ from sunlight.",
+      "id" : "8C0A3225-5AB1-4848-B0D5-9EABE082592A"
+    },
+    {
+      "back" : "plant",
+      "context" : "The chloroplast is the tiny part of a plant cell where photosynthesis happens.",
+      "front" : "The chloroplast is the tiny part of a ________ cell where photosynthesis happens.",
+      "id" : "E4C6D784-1D72-4497-BD4A-C94C1F6A3511"
+    },
+    {
+      "back" : "water",
+      "context" : "Instead, they build their own sugar using light, water, and air.",
+      "front" : "Instead, they build their own sugar using light, ________, and air.",
+      "id" : "7B5A90D6-DA71-48CF-A004-6D7837C6E120"
+    },
+    {
+      "back" : "animals",
+      "context" : "Plants do not eat like animals do.",
+      "front" : "Plants do not eat like ________ do.",
+      "id" : "214B7AD4-0AB0-400A-A13D-BE9B68D07992"
+    },
+    {
+      "back" : "carbon",
+      "context" : "They take in carbon dioxide from the air through small holes on the underside of the leaf.",
+      "front" : "They take in ________ dioxide from the air through small holes on the underside of the leaf.",
+      "id" : "A1311523-6469-4657-B25A-BAF0AA01A192"
+    }
+  ],
+  "gradeLevel" : "grade5",
+  "id" : "demo_photosynthesis",
+  "quiz" : {
+    "id" : "93C243F3-2025-486C-8200-3007BBE33C41",
+    "questions" : [
+      {
+        "choices" : [
+          "Chlorophyll",
+          "Photosynthesis",
+          "Chloroplast"
+        ],
+        "correctIndex" : 1,
+        "explanation" : "Photosynthesis — Process that plants use to make their own food.",
+        "hints" : [
+          "Think about the part that deals with process.",
+          "It starts with “P” and it's 14 letters.",
+          "It's the one that means: Process that plants use to make their own food."
+        ],
+        "id" : "01D8F294-EDCC-4290-B6B4-F9646D4BC218",
+        "prompt" : "Which term does this describe?\n\n“Process that plants use to make their own food”"
+      },
+      {
+        "choices" : [
+          "Glucose",
+          "Chlorophyll",
+          "Photosynthesis"
+        ],
+        "correctIndex" : 1,
+        "explanation" : "Chlorophyll — Green pigment inside a leaf that captures energy from sunlight.",
+        "hints" : [
+          "Think about the part that deals with green.",
+          "It starts with “C” and it's 11 letters.",
+          "It's the one that means: Green pigment inside a leaf that captures energy from sunlight."
+        ],
+        "id" : "DC88D7BA-9AB4-4185-886C-5B385675810C",
+        "prompt" : "Which term does this describe?\n\n“Green pigment inside a leaf that captures energy from sunlight”"
+      },
+      {
+        "choices" : [
+          "Glucose",
+          "Chlorophyll",
+          "Chloroplast"
+        ],
+        "correctIndex" : 0,
+        "explanation" : "Glucose — Sugar that the plant makes and stores as food.",
+        "hints" : [
+          "Think about the part that deals with sugar.",
+          "It starts with “G” and it's 7 letters.",
+          "It's the one that means: Sugar that the plant makes and stores as food."
+        ],
+        "id" : "D512CAEB-80D3-450F-A7DF-E6977915BF55",
+        "prompt" : "Which term does this describe?\n\n“Sugar that the plant makes and stores as food”"
+      },
+      {
+        "choices" : [
+          "Chlorophyll",
+          "Chloroplast",
+          "Plants"
+        ],
+        "correctIndex" : 1,
+        "explanation" : "Chloroplast — Tiny part of a plant cell where photosynthesis happens.",
+        "hints" : [
+          "Think about the part that deals with plant.",
+          "It starts with “C” and it's 11 letters.",
+          "It's the one that means: Tiny part of a plant cell where photosynthesis happens."
+        ],
+        "id" : "6A505924-8E2D-4C92-A14A-73E1FDAA8255",
+        "prompt" : "Which term does this describe?\n\n“Tiny part of a plant cell where photosynthesis happens”"
+      },
+      {
+        "choices" : [
+          "Plants",
+          "Energy",
+          "Chloroplast"
+        ],
+        "correctIndex" : 0,
+        "explanation" : "The full sentence reads: “Photosynthesis is the process that plants use to make their own food.”",
+        "hints" : [
+          "Think about the part that deals with photosynthesis.",
+          "It starts with “P” and it's 6 letters.",
+          "Ready? Say your best guess out loud first — then check it."
+        ],
+        "id" : "9AE64F23-6BED-4DF3-ABFD-1DF1332A78B9",
+        "prompt" : "Photosynthesis is the process that ________ use to make their own food."
+      },
+      {
+        "choices" : [
+          "Plants",
+          "Chloroplast",
+          "Energy"
+        ],
+        "correctIndex" : 2,
+        "explanation" : "The full sentence reads: “Chlorophyll is the green pigment inside a leaf that captures energy from sunlight.”",
+        "hints" : [
+          "Think about the part that deals with chlorophyll.",
+          "It starts with “E” and it's 6 letters.",
+          "Ready? Say your best guess out loud first — then check it."
+        ],
+        "id" : "ABA3BA4A-E45A-4DA2-A774-32436124E4F1",
+        "prompt" : "Chlorophyll is the green pigment inside a leaf that captures ________ from sunlight."
+      }
+    ],
+    "title" : "How Plants Make Food"
+  },
+  "sourceText" : "Photosynthesis is the process that plants use to make their own food. Plants do not eat like animals do. Instead, they build their own sugar using light, water, and air.\n\nChlorophyll is the green pigment inside a leaf that captures energy from sunlight. It is the reason most leaves look green. The chloroplast is the tiny part of a plant cell where photosynthesis happens. A single leaf cell can hold dozens of chloroplasts.\n\nPlants pull water up from the soil through their roots. They take in carbon dioxide from the air through small holes on the underside of the leaf. These holes are called stomata. When sunlight hits the chlorophyll, the plant uses that energy to combine the water and the carbon dioxide.\n\nGlucose is the sugar that the plant makes and stores as food. Oxygen is released back into the air as a leftover product. This is why forests and ocean plants matter so much to the air we breathe.\n\nRespiration is the opposite process. It is how a cell breaks glucose back down to release the energy stored inside it. Plants and animals both do respiration, but only plants do photosynthesis.",
+  "subject" : "science",
+  "subtitle" : "5th grade science · try me first",
+  "title" : "How Plants Make Food"
+}

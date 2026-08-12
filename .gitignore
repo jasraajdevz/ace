@@ -1,0 +1,30 @@
+# ---- Secrets (§10: no keys in the repo, ever) ----
+*.env
+.env*
+secrets.plist
+Secrets.swift
+*.p12
+*.mobileprovision
+*.certSigningRequest
+ApiKeys.swift
+
+# ---- Xcode ----
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+build/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ---- Swift Package Manager ----
+.build/
+.swiftpm/
+Package.resolved
+
+# ---- macOS ----
+.DS_Store

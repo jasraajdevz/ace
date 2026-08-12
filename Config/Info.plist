@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Kept as a real file rather than generated, because the launch screen
+	     below needs a dictionary value and INFOPLIST_KEY_* build settings can
+	     only express flat keys. It lives outside Ace/ so Xcode's synchronised
+	     folder group never tries to copy it in as a resource. -->
+
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Ace</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+
+	<!-- Launch screen. Matches LaunchPlaceholder in AceApp.swift exactly, so
+	     the handoff from the static screen to the first SwiftUI frame is
+	     invisible. -->
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+		<key>UIImageName</key>
+		<string>LaunchMark</string>
+		<key>UIImageRespectsSafeAreaInsets</key>
+		<true/>
+	</dict>
+
+	<!-- Portrait-only on iPhone: a study surface that rotates is a study
+	     surface that loses your place. iPad gets the full set. -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+
+	<!-- Permission strings. Every one of these is shown to a student, so they
+	     say what Ace actually does with the thing and why. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Ace uses the camera to read the page you're studying. Photos are processed on your device and never uploaded.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ace listens so you can talk through problems out loud, the way you would with a tutor.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Ace turns what you say into text so it can follow along. In Demo Mode this happens entirely on your device.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Ace can save a scanned page back to your photos if you ask it to.</string>
+
+	<!-- No custom encryption; declaring it here saves a compliance question on
+	     every TestFlight upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
+	<!-- Ace is dark-only by design; see DECISIONS.md. -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
+</dict>
+</plist>
