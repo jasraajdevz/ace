@@ -84,6 +84,23 @@ final class WebSocketRealtimeTransport: RealtimeTransport, @unchecked Sendable {
     // MARK: Connecting
 
     func connect(apiKey: String, model: String) async throws -> String {
+        // Mint a short-lived client token rather than putting the long-lived key
+        // on the socket. It's scoped to one session and expires in about a
+        // minute, so an intercepted token is worth almost nothing — whereas an
+        // intercepted key is worth everything.
+        //
+        // Minting is best-effort: if the endpoint is unavailable we fall back to
+        // the key, because a working session beats a marginally safer failure.
+        let credential: String
+        do {
+            credential = try await RealtimeSessionMinter.mint(
+                apiKey: apiKey, model: model,
+                voice: VoiceRoster.default.realtimeVoiceName, session: session
+            ).token
+        } catch {
+            credential = apiKey
+        }
+
         guard var components = URLComponents(string: "wss://api.openai.com/v1/realtime") else {
             throw AIProviderError.transport("Bad realtime URL")
         }
@@ -93,7 +110,7 @@ final class WebSocketRealtimeTransport: RealtimeTransport, @unchecked Sendable {
         }
 
         var request = URLRequest(url: url)
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(credential)", forHTTPHeaderField: "Authorization")
         request.setValue("realtime=v1", forHTTPHeaderField: "OpenAI-Beta")
         // Short enough that a dead network surfaces quickly rather than leaving
         // the student staring at a spinner.

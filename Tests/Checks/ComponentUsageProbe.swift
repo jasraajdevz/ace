@@ -44,6 +44,7 @@ struct ComponentUsageProbe: View {
                 celebrationSurfaces
                 voiceSurfaces
                 presenceSurfaces
+                commerceSurfaces
             }
         }
     }
@@ -108,6 +109,17 @@ struct ComponentUsageProbe: View {
             sessionXP: 60,
             onDone: {}
         )
+    }
+
+    // MARK: PaywallView, UsageSection
+
+    @ViewBuilder private var commerceSurfaces: some View {
+        PaywallView(store: StoreController()) {}
+        UsageSection(store: StoreController())
+        UsageSection(store: StoreController(), onShowPaywall: {})
+        TierRow(tier: .pro, priceText: "$9.99", isSelected: true) {}
+        TierRow(tier: .unlimited, priceText: "$19.99", isSelected: false) {}
+        AceBadge(text: "5h voice", tint: Ink.accentAlt)
     }
 
     // MARK: BodyDoubleView, SpeakingDrillView

@@ -41,6 +41,7 @@ let package = Package(
                 "Ace/Features/Study/FlashcardView.swift",
                 "Ace/Features/Study/TutorView.swift",
                 "Ace/Features/Settings/SettingsView.swift",
+                "Ace/Services/ShareImporter.swift",   // SwiftData-bound
                 "Ace/AceApp.swift",
                 // `@main` is exclusive and this target already has a main.swift.
                 "AceWidget/AceWidgetBundle.swift",
@@ -64,6 +65,7 @@ let package = Package(
                 "Ace/Features/Study/QuizResultsView.swift",
                 "Ace/Features/Study/FlashcardResultsView.swift",
                 "Ace/Features/Settings/LiveModeSettings.swift",
+                "Ace/Features/Settings/PaywallView.swift",
                 "Tests/Checks",       // the assertions
                 "Tools/VerifyMain",   // the runner's entry point
             ]

@@ -94,6 +94,9 @@ struct RootView: View {
     @Query private var profiles: [Profile]
 
     @State private var didBootstrap = false
+    @State private var importNotice: String?
+    @State private var shouldOpenCapture = false
+    @Environment(\.scenePhase) private var scenePhase
 
     private var profile: Profile? { profiles.first }
 
@@ -115,6 +118,27 @@ struct RootView: View {
             }
         }
         .aceAnimation(Motion.smooth, value: profile?.hasCompletedOnboarding)
+        // Anything shared into Ace from another app is picked up here, on the
+        // way back to the front (§Part 5).
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, profile?.hasCompletedOnboarding == true else { return }
+            Task { await drainSharedContent() }
+        }
+        .overlay(alignment: .top) {
+            if let importNotice {
+                Text(importNotice)
+                    .font(Typeface.footnote)
+                    .foregroundStyle(Ink.textPrimary)
+                    .padding(.vertical, Space.s)
+                    .padding(.horizontal, Space.l)
+                    .background(Ink.surfaceRaised, in: Capsule())
+                    .overlay(Capsule().strokeBorder(Ink.stroke, lineWidth: 1))
+                    .elevation(.medium)
+                    .padding(.top, Space.s)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .aceAnimation(Motion.smooth, value: importNotice)
         .task {
             guard !didBootstrap else { return }
             didBootstrap = true
@@ -123,7 +147,34 @@ struct RootView: View {
             _ = ProgressStore.fetchOrCreate(in: modelContext)
             DemoContent.installIfNeeded(in: modelContext)
             appState.apply(profile.settings)
+            WidgetBridge.refresh(from: modelContext)
+            await appState.store.refreshEntitlements()
+            await drainSharedContent()
         }
+    }
+
+    /// Import anything the share extension left behind, and honour a quick-
+    /// capture tap from the widget.
+    private func drainSharedContent() async {
+        // The widget's capture button asks for the camera; consuming the request
+        // here means it survives a cold launch.
+        if QuickCaptureRequest.consume() {
+            shouldOpenCapture = true
+        }
+
+        guard ShareInbox.hasPendingItems else { return }
+        let result = await ShareImporter.drain(
+            into: modelContext,
+            provider: appState.provider,
+            gradeLevel: appState.gradeLevel,
+            safety: appState.safety
+        )
+        guard let message = result.message else { return }
+        importNotice = message
+        Feedback.complete()
+
+        try? await Task.sleep(for: .seconds(3))
+        importNotice = nil
     }
 }
 

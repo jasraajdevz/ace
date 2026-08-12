@@ -181,15 +181,19 @@ struct AceMediumWidgetView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
 
-                if !snapshot.lastSourceTitle.isEmpty {
-                    HStack(spacing: 5) {
-                        Image(systemName: "doc.text")
-                            .font(.system(size: 9, weight: .semibold))
-                        Text(snapshot.lastSourceTitle)
-                            .font(.system(size: 11, design: .rounded).weight(.medium))
-                            .lineLimit(1)
+                HStack(spacing: 8) {
+                    if !snapshot.lastSourceTitle.isEmpty {
+                        HStack(spacing: 5) {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 9, weight: .semibold))
+                            Text(snapshot.lastSourceTitle)
+                                .font(.system(size: 11, design: .rounded).weight(.medium))
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(WidgetInk.textTertiary)
                     }
-                    .foregroundStyle(WidgetInk.textTertiary)
+                    Spacer(minLength: 0)
+                    QuickCaptureButton()
                 }
 
                 Spacer(minLength: 0)

@@ -27,6 +27,12 @@ if CommandLine.arguments.contains("--dump-demo-decks") {
     exit(0)
 }
 
+// The pricing worksheet, computed from measured usage (§Part 5).
+if CommandLine.arguments.contains("--pricing") {
+    PricingReport.print()
+    exit(0)
+}
+
 print("\n\(dim)Ace — core verification\(reset)\n")
 
 var totalPassed = 0

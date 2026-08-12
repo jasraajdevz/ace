@@ -8,13 +8,14 @@ change in the UI and let Xcode write it back. Generating it from a script means
 the object graph is built once, correctly, and every future change is a small
 edit here rather than surgery on 300 lines of OpenStep plist.
 
-Two targets:
+Three targets:
   • Ace                    — the app. Uses a synchronised folder group, so new
                              files under Ace/ are picked up with no edit here.
-  • AceWidgetExtension     — the widget. Explicit file list (it's four files).
+  • AceWidgetExtension     — the widget and the Live Activity.
+  • AceShare               — the share-sheet extension (Anywhere Mode).
 
-`Shared/WidgetSnapshot.swift` is compiled into BOTH targets, which is why the
-app target has an explicit Sources entry alongside its synchronised group.
+Everything in `Shared/` is compiled into more than one target, which is why the
+app target has explicit Sources entries alongside its synchronised group.
 
 Run:  python3 Tools/gen/build_pbxproj.py
 Then: ./Tools/verify.sh   (which structurally validates the result)
@@ -73,6 +74,38 @@ REF_WIDGET_VIEWS    = oid(123)
 REF_WIDGET_PLIST    = oid(124)
 REF_APP_ENTS        = oid(125)
 REF_WIDGET_ENTS     = oid(126)
+REF_PRIVACY         = oid(127)
+
+# Part 5 — the share extension.
+SHARE_PRODUCT      = oid(140)
+SHARE_GROUP        = oid(141)
+SHARE_TARGET       = oid(142)
+SHARE_SOURCES      = oid(143)
+SHARE_FRAMEWORKS   = oid(144)
+SHARE_RESOURCES    = oid(145)
+SHARE_CONFIG_LIST  = oid(146)
+SHARE_DEBUG        = oid(147)
+SHARE_RELEASE      = oid(148)
+SHARE_PROXY        = oid(149)
+SHARE_DEPENDENCY   = oid(150)
+REF_SHARE_MAIN     = oid(151)
+REF_SHARE_PLIST    = oid(152)
+REF_SHARE_ENTS     = oid(153)
+REF_SHARE_INBOX    = oid(154)
+REF_ACTIVITY_ATTRS = oid(155)
+REF_WIDGET_ACTIVITY = oid(156)
+REF_WIDGET_INTENT  = oid(157)
+
+BF_SHARE_MAIN        = oid(160)
+BF_INBOX_IN_APP      = oid(161)
+BF_INBOX_IN_SHARE    = oid(162)
+BF_ATTRS_IN_APP      = oid(163)
+BF_ATTRS_IN_WIDGET   = oid(164)
+BF_WIDGET_ACTIVITY   = oid(165)
+BF_WIDGET_INTENT     = oid(166)
+BF_SHARE_EMBED       = oid(167)
+BF_SNAPSHOT_IN_SHARE = oid(168)
+BF_PRIVACY_IN_APP    = oid(169)
 
 # Build files
 BF_SHARED_IN_APP    = oid(130)
@@ -171,6 +204,25 @@ def app_target_settings() -> str:
 \t\t\t\tTARGETED_DEVICE_FAMILY = "1,2";"""
 
 
+def share_target_settings() -> str:
+    return f"""\t\t\t\tCODE_SIGN_ENTITLEMENTS = Config/AceShare.entitlements;
+\t\t\t\tCODE_SIGN_STYLE = Automatic;
+\t\t\t\tCURRENT_PROJECT_VERSION = 1;
+\t\t\t\tGENERATE_INFOPLIST_FILE = NO;
+\t\t\t\tINFOPLIST_FILE = "Config/AceShare-Info.plist";
+\t\t\t\tLD_RUNPATH_SEARCH_PATHS = (
+\t\t\t\t\t"$(inherited)",
+\t\t\t\t\t"@executable_path/Frameworks",
+\t\t\t\t\t"@executable_path/../../Frameworks",
+\t\t\t\t);
+\t\t\t\tMARKETING_VERSION = 1.0;
+\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}.AceShare;
+\t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";
+\t\t\t\tSKIP_INSTALL = YES;
+\t\t\t\tSWIFT_EMIT_LOC_STRINGS = YES;
+\t\t\t\tTARGETED_DEVICE_FAMILY = "1,2";"""
+
+
 def widget_target_settings() -> str:
     return f"""\t\t\t\tCODE_SIGN_ENTITLEMENTS = Config/AceWidget.entitlements;
 \t\t\t\tCODE_SIGN_STYLE = Automatic;
@@ -209,6 +261,16 @@ def build() -> str:
 \t\t{BF_WIDGET_BUNDLE} /* AceWidgetBundle.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {REF_WIDGET_BUNDLE} /* AceWidgetBundle.swift */; }};
 \t\t{BF_WIDGET_VIEWS} /* AceWidgetViews.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {REF_WIDGET_VIEWS} /* AceWidgetViews.swift */; }};
 \t\t{EMBED_BUILD_FILE} /* AceWidgetExtension.appex in Embed Foundation Extensions */ = {{isa = PBXBuildFile; fileRef = {WIDGET_PRODUCT} /* AceWidgetExtension.appex */; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};
+\t\t{BF_SHARE_EMBED} /* AceShare.appex in Embed Foundation Extensions */ = {{isa = PBXBuildFile; fileRef = {SHARE_PRODUCT} /* AceShare.appex */; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};
+\t\t{BF_SHARE_MAIN} /* ShareViewController.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {REF_SHARE_MAIN} /* ShareViewController.swift */; }};
+\t\t{BF_INBOX_IN_APP} /* ShareInbox.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {REF_SHARE_INBOX} /* ShareInbox.swift */; }};
+\t\t{BF_INBOX_IN_SHARE} /* ShareInbox.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {REF_SHARE_INBOX} /* ShareInbox.swift */; }};
+\t\t{BF_SNAPSHOT_IN_SHARE} /* WidgetSnapshot.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {REF_SHARED_SNAPSHOT} /* WidgetSnapshot.swift */; }};
+\t\t{BF_ATTRS_IN_APP} /* StudyActivityAttributes.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {REF_ACTIVITY_ATTRS} /* StudyActivityAttributes.swift */; }};
+\t\t{BF_ATTRS_IN_WIDGET} /* StudyActivityAttributes.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {REF_ACTIVITY_ATTRS} /* StudyActivityAttributes.swift */; }};
+\t\t{BF_WIDGET_ACTIVITY} /* StudyLiveActivity.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {REF_WIDGET_ACTIVITY} /* StudyLiveActivity.swift */; }};
+\t\t{BF_WIDGET_INTENT} /* QuickCaptureIntent.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {REF_WIDGET_INTENT} /* QuickCaptureIntent.swift */; }};
+\t\t{BF_PRIVACY_IN_APP} /* PrivacyInfo.xcprivacy in Resources */ = {{isa = PBXBuildFile; fileRef = {REF_PRIVACY} /* PrivacyInfo.xcprivacy */; }};
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -218,6 +280,13 @@ def build() -> str:
 \t\t\tproxyType = 1;
 \t\t\tremoteGlobalIDString = {WIDGET_TARGET};
 \t\t\tremoteInfo = AceWidgetExtension;
+\t\t}};
+\t\t{SHARE_PROXY} /* PBXContainerItemProxy */ = {{
+\t\t\tisa = PBXContainerItemProxy;
+\t\t\tcontainerPortal = {PROJECT} /* Project object */;
+\t\t\tproxyType = 1;
+\t\t\tremoteGlobalIDString = {SHARE_TARGET};
+\t\t\tremoteInfo = AceShare;
 \t\t}};
 /* End PBXContainerItemProxy section */
 
@@ -229,6 +298,7 @@ def build() -> str:
 \t\t\tdstSubfolderSpec = 13;
 \t\t\tfiles = (
 \t\t\t\t{EMBED_BUILD_FILE} /* AceWidgetExtension.appex in Embed Foundation Extensions */,
+\t\t\t\t{BF_SHARE_EMBED} /* AceShare.appex in Embed Foundation Extensions */,
 \t\t\t);
 \t\t\tname = "Embed Foundation Extensions";
 \t\t\trunOnlyForDeploymentPostprocessing = 0;
@@ -246,6 +316,15 @@ def build() -> str:
 \t\t{REF_WIDGET_PLIST} /* AceWidget-Info.plist */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AceWidget-Info.plist"; sourceTree = "<group>"; }};
 \t\t{REF_APP_ENTS} /* Ace.entitlements */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Ace.entitlements; sourceTree = "<group>"; }};
 \t\t{REF_WIDGET_ENTS} /* AceWidget.entitlements */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AceWidget.entitlements; sourceTree = "<group>"; }};
+\t\t{REF_PRIVACY} /* PrivacyInfo.xcprivacy */ = {{isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; }};
+\t\t{SHARE_PRODUCT} /* AceShare.appex */ = {{isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AceShare.appex; sourceTree = BUILT_PRODUCTS_DIR; }};
+\t\t{REF_SHARE_MAIN} /* ShareViewController.swift */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; }};
+\t\t{REF_SHARE_PLIST} /* AceShare-Info.plist */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AceShare-Info.plist"; sourceTree = "<group>"; }};
+\t\t{REF_SHARE_ENTS} /* AceShare.entitlements */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AceShare.entitlements; sourceTree = "<group>"; }};
+\t\t{REF_SHARE_INBOX} /* ShareInbox.swift */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInbox.swift; sourceTree = "<group>"; }};
+\t\t{REF_ACTIVITY_ATTRS} /* StudyActivityAttributes.swift */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyActivityAttributes.swift; sourceTree = "<group>"; }};
+\t\t{REF_WIDGET_ACTIVITY} /* StudyLiveActivity.swift */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyLiveActivity.swift; sourceTree = "<group>"; }};
+\t\t{REF_WIDGET_INTENT} /* QuickCaptureIntent.swift */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCaptureIntent.swift; sourceTree = "<group>"; }};
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -271,6 +350,13 @@ def build() -> str:
 \t\t\t);
 \t\t\trunOnlyForDeploymentPostprocessing = 0;
 \t\t}};
+\t\t{SHARE_FRAMEWORKS} /* Frameworks */ = {{
+\t\t\tisa = PBXFrameworksBuildPhase;
+\t\t\tbuildActionMask = 2147483647;
+\t\t\tfiles = (
+\t\t\t);
+\t\t\trunOnlyForDeploymentPostprocessing = 0;
+\t\t}};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -279,6 +365,7 @@ def build() -> str:
 \t\t\tchildren = (
 \t\t\t\t{APP_GROUP_SYNC} /* Ace */,
 \t\t\t\t{WIDGET_GROUP} /* AceWidget */,
+\t\t\t\t{SHARE_GROUP} /* AceShare */,
 \t\t\t\t{SHARED_GROUP} /* Shared */,
 \t\t\t\t{CONFIG_GROUP} /* Config */,
 \t\t\t\t{PRODUCTS_GROUP} /* Products */,
@@ -291,14 +378,26 @@ def build() -> str:
 \t\t\t\t{REF_WIDGET_BUNDLE} /* AceWidgetBundle.swift */,
 \t\t\t\t{REF_WIDGET_MAIN} /* AceWidget.swift */,
 \t\t\t\t{REF_WIDGET_VIEWS} /* AceWidgetViews.swift */,
+\t\t\t\t{REF_WIDGET_ACTIVITY} /* StudyLiveActivity.swift */,
+\t\t\t\t{REF_WIDGET_INTENT} /* QuickCaptureIntent.swift */,
 \t\t\t);
 \t\t\tpath = AceWidget;
+\t\t\tsourceTree = "<group>";
+\t\t}};
+\t\t{SHARE_GROUP} /* AceShare */ = {{
+\t\t\tisa = PBXGroup;
+\t\t\tchildren = (
+\t\t\t\t{REF_SHARE_MAIN} /* ShareViewController.swift */,
+\t\t\t);
+\t\t\tpath = AceShare;
 \t\t\tsourceTree = "<group>";
 \t\t}};
 \t\t{SHARED_GROUP} /* Shared */ = {{
 \t\t\tisa = PBXGroup;
 \t\t\tchildren = (
 \t\t\t\t{REF_SHARED_SNAPSHOT} /* WidgetSnapshot.swift */,
+\t\t\t\t{REF_SHARE_INBOX} /* ShareInbox.swift */,
+\t\t\t\t{REF_ACTIVITY_ATTRS} /* StudyActivityAttributes.swift */,
 \t\t\t);
 \t\t\tpath = Shared;
 \t\t\tsourceTree = "<group>";
@@ -308,8 +407,11 @@ def build() -> str:
 \t\t\tchildren = (
 \t\t\t\t{APP_INFO_PLIST} /* Info.plist */,
 \t\t\t\t{REF_WIDGET_PLIST} /* AceWidget-Info.plist */,
+\t\t\t\t{REF_SHARE_PLIST} /* AceShare-Info.plist */,
 \t\t\t\t{REF_APP_ENTS} /* Ace.entitlements */,
 \t\t\t\t{REF_WIDGET_ENTS} /* AceWidget.entitlements */,
+\t\t\t\t{REF_SHARE_ENTS} /* AceShare.entitlements */,
+\t\t\t\t{REF_PRIVACY} /* PrivacyInfo.xcprivacy */,
 \t\t\t);
 \t\t\tpath = Config;
 \t\t\tsourceTree = "<group>";
@@ -319,6 +421,7 @@ def build() -> str:
 \t\t\tchildren = (
 \t\t\t\t{APP_PRODUCT} /* Ace.app */,
 \t\t\t\t{WIDGET_PRODUCT} /* AceWidgetExtension.appex */,
+\t\t\t\t{SHARE_PRODUCT} /* AceShare.appex */,
 \t\t\t);
 \t\t\tname = Products;
 \t\t\tsourceTree = "<group>";
@@ -339,6 +442,7 @@ def build() -> str:
 \t\t\t);
 \t\t\tdependencies = (
 \t\t\t\t{TARGET_DEPENDENCY} /* PBXTargetDependency */,
+\t\t\t\t{SHARE_DEPENDENCY} /* PBXTargetDependency */,
 \t\t\t);
 \t\t\tfileSystemSynchronizedGroups = (
 \t\t\t\t{APP_GROUP_SYNC} /* Ace */,
@@ -365,6 +469,23 @@ def build() -> str:
 \t\t\tproductReference = {WIDGET_PRODUCT} /* AceWidgetExtension.appex */;
 \t\t\tproductType = "com.apple.product-type.app-extension";
 \t\t}};
+\t\t{SHARE_TARGET} /* AceShare */ = {{
+\t\t\tisa = PBXNativeTarget;
+\t\t\tbuildConfigurationList = {SHARE_CONFIG_LIST} /* Build configuration list for PBXNativeTarget "AceShare" */;
+\t\t\tbuildPhases = (
+\t\t\t\t{SHARE_SOURCES} /* Sources */,
+\t\t\t\t{SHARE_FRAMEWORKS} /* Frameworks */,
+\t\t\t\t{SHARE_RESOURCES} /* Resources */,
+\t\t\t);
+\t\t\tbuildRules = (
+\t\t\t);
+\t\t\tdependencies = (
+\t\t\t);
+\t\t\tname = AceShare;
+\t\t\tproductName = AceShare;
+\t\t\tproductReference = {SHARE_PRODUCT} /* AceShare.appex */;
+\t\t\tproductType = "com.apple.product-type.app-extension";
+\t\t}};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -379,6 +500,9 @@ def build() -> str:
 \t\t\t\t\t\tCreatedOnToolsVersion = 26.0;
 \t\t\t\t\t}};
 \t\t\t\t\t{WIDGET_TARGET} = {{
+\t\t\t\t\t\tCreatedOnToolsVersion = 26.0;
+\t\t\t\t\t}};
+\t\t\t\t\t{SHARE_TARGET} = {{
 \t\t\t\t\t\tCreatedOnToolsVersion = 26.0;
 \t\t\t\t\t}};
 \t\t\t\t}};
@@ -399,6 +523,7 @@ def build() -> str:
 \t\t\ttargets = (
 \t\t\t\t{APP_TARGET} /* Ace */,
 \t\t\t\t{WIDGET_TARGET} /* AceWidgetExtension */,
+\t\t\t\t{SHARE_TARGET} /* AceShare */,
 \t\t\t);
 \t\t}};
 /* End PBXProject section */
@@ -408,10 +533,18 @@ def build() -> str:
 \t\t\tisa = PBXResourcesBuildPhase;
 \t\t\tbuildActionMask = 2147483647;
 \t\t\tfiles = (
+\t\t\t\t{BF_PRIVACY_IN_APP} /* PrivacyInfo.xcprivacy in Resources */,
 \t\t\t);
 \t\t\trunOnlyForDeploymentPostprocessing = 0;
 \t\t}};
 \t\t{WIDGET_RESOURCES} /* Resources */ = {{
+\t\t\tisa = PBXResourcesBuildPhase;
+\t\t\tbuildActionMask = 2147483647;
+\t\t\tfiles = (
+\t\t\t);
+\t\t\trunOnlyForDeploymentPostprocessing = 0;
+\t\t}};
+\t\t{SHARE_RESOURCES} /* Resources */ = {{
 \t\t\tisa = PBXResourcesBuildPhase;
 \t\t\tbuildActionMask = 2147483647;
 \t\t\tfiles = (
@@ -426,6 +559,8 @@ def build() -> str:
 \t\t\tbuildActionMask = 2147483647;
 \t\t\tfiles = (
 \t\t\t\t{BF_SHARED_IN_APP} /* WidgetSnapshot.swift in Sources */,
+\t\t\t\t{BF_INBOX_IN_APP} /* ShareInbox.swift in Sources */,
+\t\t\t\t{BF_ATTRS_IN_APP} /* StudyActivityAttributes.swift in Sources */,
 \t\t\t);
 \t\t\trunOnlyForDeploymentPostprocessing = 0;
 \t\t}};
@@ -437,6 +572,19 @@ def build() -> str:
 \t\t\t\t{BF_WIDGET_MAIN} /* AceWidget.swift in Sources */,
 \t\t\t\t{BF_WIDGET_VIEWS} /* AceWidgetViews.swift in Sources */,
 \t\t\t\t{BF_SHARED_IN_WIDGET} /* WidgetSnapshot.swift in Sources */,
+\t\t\t\t{BF_ATTRS_IN_WIDGET} /* StudyActivityAttributes.swift in Sources */,
+\t\t\t\t{BF_WIDGET_ACTIVITY} /* StudyLiveActivity.swift in Sources */,
+\t\t\t\t{BF_WIDGET_INTENT} /* QuickCaptureIntent.swift in Sources */,
+\t\t\t);
+\t\t\trunOnlyForDeploymentPostprocessing = 0;
+\t\t}};
+\t\t{SHARE_SOURCES} /* Sources */ = {{
+\t\t\tisa = PBXSourcesBuildPhase;
+\t\t\tbuildActionMask = 2147483647;
+\t\t\tfiles = (
+\t\t\t\t{BF_SHARE_MAIN} /* ShareViewController.swift in Sources */,
+\t\t\t\t{BF_INBOX_IN_SHARE} /* ShareInbox.swift in Sources */,
+\t\t\t\t{BF_SNAPSHOT_IN_SHARE} /* WidgetSnapshot.swift in Sources */,
 \t\t\t);
 \t\t\trunOnlyForDeploymentPostprocessing = 0;
 \t\t}};
@@ -447,6 +595,11 @@ def build() -> str:
 \t\t\tisa = PBXTargetDependency;
 \t\t\ttarget = {WIDGET_TARGET} /* AceWidgetExtension */;
 \t\t\ttargetProxy = {TARGET_PROXY} /* PBXContainerItemProxy */;
+\t\t}};
+\t\t{SHARE_DEPENDENCY} /* PBXTargetDependency */ = {{
+\t\t\tisa = PBXTargetDependency;
+\t\t\ttarget = {SHARE_TARGET} /* AceShare */;
+\t\t\ttargetProxy = {SHARE_PROXY} /* PBXContainerItemProxy */;
 \t\t}};
 /* End PBXTargetDependency section */
 
@@ -495,6 +648,20 @@ def build() -> str:
 \t\t\t}};
 \t\t\tname = Release;
 \t\t}};
+\t\t{SHARE_DEBUG} /* Debug */ = {{
+\t\t\tisa = XCBuildConfiguration;
+\t\t\tbuildSettings = {{
+{share_target_settings()}
+\t\t\t}};
+\t\t\tname = Debug;
+\t\t}};
+\t\t{SHARE_RELEASE} /* Release */ = {{
+\t\t\tisa = XCBuildConfiguration;
+\t\t\tbuildSettings = {{
+{share_target_settings()}
+\t\t\t}};
+\t\t\tname = Release;
+\t\t}};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -521,6 +688,15 @@ def build() -> str:
 \t\t\tbuildConfigurations = (
 \t\t\t\t{WIDGET_DEBUG} /* Debug */,
 \t\t\t\t{WIDGET_RELEASE} /* Release */,
+\t\t\t);
+\t\t\tdefaultConfigurationIsVisible = 0;
+\t\t\tdefaultConfigurationName = Release;
+\t\t}};
+\t\t{SHARE_CONFIG_LIST} /* Build configuration list for PBXNativeTarget "AceShare" */ = {{
+\t\t\tisa = XCConfigurationList;
+\t\t\tbuildConfigurations = (
+\t\t\t\t{SHARE_DEBUG} /* Debug */,
+\t\t\t\t{SHARE_RELEASE} /* Release */,
 \t\t\t);
 \t\t\tdefaultConfigurationIsVisible = 0;
 \t\t\tdefaultConfigurationName = Release;

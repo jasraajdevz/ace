@@ -71,6 +71,25 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Ace can save a scanned page back to your photos if you ask it to.</string>
 
+	<!-- Live Activities: the session on the lock screen (§Part 5). -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<false/>
+
+	<!-- The widget and the Live Activity deep-link back in. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.acestudy.Ace</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ace</string>
+			</array>
+		</dict>
+	</array>
+
 	<!-- No custom encryption; declaring it here saves a compliance question on
 	     every TestFlight upload. -->
 	<key>ITSAppUsesNonExemptEncryption</key>

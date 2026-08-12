@@ -9,7 +9,7 @@ bottom.
 
 ---
 
-## What's here right now (Parts 1–4 of 5)
+## What's here — all five parts
 
 - **Onboarding** — name, year, subjects, and a voice you pick by listening to it
 - **Capture** — scan a document, take a photo, pick from your library, or paste
@@ -39,12 +39,13 @@ bottom.
   the one thing to fix, and tracks whether you're getting better
 - **The crisis safety net** — always on, everywhere, typed *and* spoken, with
   281 dedicated checks
+- **Anywhere Mode** — share a screenshot, PDF, link or text to Ace from any app
+  and it's waiting as study material. Quick capture from the widget, and the
+  session on your lock screen
+- **Usage metering** — see exactly what Live Mode costs, measured on your device
 - **Two bundled demo decks** so the app has something real in it on first launch
 
 Everything runs with **no account, no API key, and no network**.
-
-Coming in Part 5: Anywhere Mode (share sheet, Live Activity), usage metering,
-the paywall, and the final QA sweep.
 
 ---
 
@@ -176,7 +177,7 @@ There's a full verification suite that runs **without Xcode**:
 cd ~/Downloads/ace && ./Tools/verify.sh
 ```
 
-It compiles the logic layers against the macOS SDK, runs 2,800 assertions,
+It compiles the logic layers against the macOS SDK, runs 2,949 assertions,
 parses every Swift file in both targets, and validates the Xcode project's whole
 object graph — dangling references, missing build phases, whether the app
 actually embeds the widget, whether the App Group matches on both sides. It
@@ -201,6 +202,13 @@ script rather than surgery on a 400-line plist:
 cd ~/Downloads/ace && python3 Tools/gen/build_pbxproj.py && python3 Tools/gen/check_pbxproj.py
 ```
 
+To see the pricing worksheet — real per-user cost and suggested prices, computed
+from measured usage:
+
+```bash
+cd ~/Downloads/ace && swift run AceVerify --pricing
+```
+
 ---
 
 ## How the code is laid out
@@ -222,8 +230,11 @@ Ace/
 ├── Features/        The screens
 └── Resources/       The two bundled demo decks
 
-AceWidget/           The home-screen widget (its own target)
-Shared/              WidgetSnapshot.swift — compiled into BOTH targets
+│   ├── Presence/    Body doubling, the Guardian, comfort, DND, music, drills
+│   └── Economics/   Usage metering, tiers, caps, the pricing worksheet
+AceWidget/           Home-screen widget, Live Activity, quick-capture intent
+AceShare/            The share-sheet extension (Anywhere Mode)
+Shared/              Files compiled into more than one target
 Config/              Info.plists, entitlements, permission strings
 Tests/Checks/        The assertion suite
 Tools/               verify.sh, the icon generator, the project generator
@@ -253,7 +264,43 @@ screen shows no numbers at all. Dismissing it does not switch them back on.
 
 ---
 
+## Pricing, if you ever ship this
+
+Ace meters what Live Mode costs, on the device, from the first session. Run
+`swift run AceVerify --pricing` for the worksheet.
+
+It is worth reading before you set a price. Run against realistic usage, it
+reported that a $9.99 tier with 300 voice minutes would **lose $38.59 per
+subscriber per month**. The tiers in the app now reflect what it said: the mini
+realtime model for subscriptions, and much smaller caps. There's a test that
+fails the build if any tier ever goes underwater again.
+
+The paywall is **off by default** (Settings ▸ Start over ▸ Enable plans and
+limits). With it off nothing is capped and no purchase is ever offered.
+
+## Getting it onto TestFlight
+
+Once you've run it in the Simulator and on your own phone:
+
+1. You need a **paid Apple Developer account** ($99/year) — a free one can't
+   upload builds, and can't use App Groups on a device.
+2. **App Store Connect ▸ My Apps ▸ +** → New App. Bundle ID must match the one
+   in Xcode (`com.acestudy.Ace`, or whatever you changed it to).
+3. In Xcode: device dropdown → **Any iOS Device (arm64)**, then
+   **Product ▸ Archive**.
+4. When the Organizer opens: **Distribute App ▸ TestFlight & App Store ▸
+   Upload**.
+5. Wait for processing (usually 10–30 minutes), then in App Store Connect ▸
+   **TestFlight**, add yourself as an internal tester.
+6. Install **TestFlight** on your phone and the build appears there.
+
+Things that will be asked and are already answered in the project: encryption
+compliance (`ITSAppUsesNonExemptEncryption` is `false`), the privacy manifest
+(`Config/PrivacyInfo.xcprivacy` — Ace collects nothing), and permission strings
+for camera, microphone and speech recognition.
+
 ## Companion documents
 
 - [DECISIONS.md](DECISIONS.md) — every judgement call made along the way, and why
-- `QA.md` — arrives with Part 5
+- [QA.md](QA.md) — the final sweep, and an honest list of what could not be
+  verified without Xcode

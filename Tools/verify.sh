@@ -208,6 +208,17 @@ fi
 
 # ---------------------------------------------------------------- result
 
+# ---------------------------------------------------------------- 5. final sweep
+
+section "5 · Final sweep"
+
+if QA=$(./Tools/qa.sh 2>&1); then
+    pass "QA sweep clean (accessibility, designed states, dead code, secrets)"
+else
+    fail "QA sweep found problems — run ./Tools/qa.sh"
+    echo "$QA" | grep "✗" | sed 's|^|    |'
+fi
+
 printf "\n"
 if [ "$FAILED" -eq 0 ]; then
     printf "${GREEN}${BOLD}Everything verifiable on this machine passes.${NC}\n"

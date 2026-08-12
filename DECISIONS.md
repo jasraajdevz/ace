@@ -507,3 +507,98 @@ until it mattered.
 and coursework. It immediately found a real hole: "anymore" comes back as "any
 more", so "i do not want to be here any more" matched nothing. The normaliser now
 rejoins the compounds a recogniser is likely to split.
+
+
+---
+
+## Part 5 — Everywhere, the business, and the final polish
+
+### D38 · The worksheet said the tiers lose money, so the tiers changed
+
+This is what the pricing worksheet was for, and it earned its place immediately.
+
+Run against realistic metered usage, `PricingWorksheet` reported that **Pro at
+$9.99 with 300 voice minutes would cost $45.59 to serve a subscriber who used
+their allowance — a $38.59 loss, every month, per subscriber.** Unlimited was
+worse: a $168 monthly loss. The suggested break-even prices were $131 and $521.
+
+Two things changed rather than shipping that:
+
+1. **Subscription tiers run on the mini realtime model.** The full model costs
+   about six times as much per minute of audio, and at that rate no flat-rate
+   price under roughly $60 survives a heavy subscriber. Mini is more than good
+   enough for Socratic tutoring, where replies are two or three sentences.
+   Bring-your-own-key gets the full model, because they're paying for it.
+2. **Caps came down hard.** Free 20 → 15 minutes, Pro 300 → 150, Unlimited
+   1,200 → 400.
+
+Result: every tier is now positive at full use (Pro +$3.20, Unlimited +$3.88).
+There's a **regression guard** in `TierChecks` that fails the build if any priced
+tier ever goes underwater again.
+
+The report also has to be internally consistent: costing the worst case against
+the mini card while costing "expected use" against the full card would make the
+worksheet contradict itself, which is exactly how a spreadsheet becomes
+dangerous. `expectedMargin` uses the tier's own rate card.
+
+### D39 · The paywall ships OFF, but the meter runs from day one
+
+`PaywallFlag.isEnabled` is false by default. With it off there are no caps, no
+purchase prompts, and no StoreKit calls at all — `entitlement` simply returns
+Unlimited.
+
+But `UsageLedger` records from the first Live Mode session regardless. That
+ordering is the point: by the time the flag is flipped there is real usage data
+behind the prices, rather than a guess. The usage panel is visible in Settings
+either way, so a student on their own key can see exactly what Ace is spending.
+
+### D40 · The share extension writes bytes and exits
+
+A share extension is a separate process with a hard memory ceiling that is killed
+the moment its UI dismisses. Running OCR, PDF rendering and deck generation
+inside one is a good way to be terminated halfway through.
+
+So `AceShare` does the minimum: writes the payload into the App Group container
+and finishes. `ShareImporter` drains the inbox the next time the app is
+frontmost, where there's a SwiftData stack and no ceiling. Sharing therefore
+works while the app is closed, and the payload is written *before* the manifest
+entry — so a kill between the two loses the item rather than leaving an entry
+pointing at a file that isn't there.
+
+It's UIKit rather than SwiftUI because the extension's whole job is a 400ms
+confirmation, and UIKit gets on screen faster with no hosting controller.
+
+### D41 · Free is not a trial, and the paywall says so
+
+The free column on the paywall is longer than the paid one, because it's true:
+everything on-device is unlimited forever. Capture, OCR, quizzes, flashcards, the
+Socratic tutor, the system voice, body doubling, speaking drills, the widget —
+none of it has a marginal cost, so none of it is gated.
+
+The only thing money buys is realtime voice. Bring-your-own-key is offered
+plainly rather than buried, because for a heavy user it's genuinely the better
+deal, and pretending otherwise is the kind of thing this app shouldn't do.
+
+Hitting a cap **degrades to Demo Mode** with one sentence. There's a test
+forbidding "upgrade to continue", "blocked", "locked" and "unlock" from the cap
+message.
+
+### D42 · The QA sweep is a script, not a checklist
+
+`Tools/qa.sh` checks the things that rot quietly: unlabelled controls, missing
+designed states, `print` left in, force-trys, TODO markers, unreferenced types,
+and whether the safety net is still wired into every free-text surface. It runs
+as step 5 of `verify.sh`, so "everything passes" means all of it.
+
+It found one real thing on its first run: `RealtimeSessionMinter` had been built
+in Part 3 and never called. D24 claimed an ephemeral token is safer on the wire
+than the raw key — so rather than deleting the code, it's now wired into
+`WebSocketRealtimeTransport`, which mints a short-lived token and falls back to
+the key only if minting fails. The claim is now true instead of merely stated.
+
+### D43 · Rate cards carry the date they were checked
+
+Model prices move faster than app releases, and a hard-coded number that silently
+goes stale produces a pricing worksheet that is confidently wrong — which is
+worse than no worksheet. Every `RateCard` has a `checkedOn` field, the report
+prints it, and there's a test asserting it isn't empty.

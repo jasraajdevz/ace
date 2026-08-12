@@ -93,7 +93,7 @@ def main() -> int:
     build_files = of_type("PBXBuildFile")
 
     names = {t["name"] for t in targets.values()}
-    for expected in ("Ace", "AceWidgetExtension"):
+    for expected in ("Ace", "AceWidgetExtension", "AceShare"):
         if expected not in names:
             fail(f"missing target “{expected}”")
 
@@ -104,6 +104,8 @@ def main() -> int:
 
     app_id = next(k for k, v in targets.items() if v["name"] == "Ace")
     widget_id = next(k for k, v in targets.items() if v["name"] == "AceWidgetExtension")
+    share = next((t for t in targets.values() if t["name"] == "AceShare"), None)
+    share_id = next((k for k, v in targets.items() if v["name"] == "AceShare"), None)
 
     # ---- product types ------------------------------------------------------------
     if app["productType"] != "com.apple.product-type.application":
@@ -134,11 +136,16 @@ def main() -> int:
         embedded = {objects[bf]["fileRef"] for bf in embed.get("files", [])}
         if widget["productReference"] not in embedded:
             fail("the widget product is not in the app's embed phase")
+        # Every extension must be embedded, or it simply won't exist at runtime.
+        if share and share["productReference"] not in embedded:
+            fail("the share extension is not in the app's embed phase")
 
     # ---- and depend on it, so build order is right -------------------------------------
     deps = [objects[d] for d in app.get("dependencies", [])]
     if not any(d.get("target") == widget_id for d in deps):
         fail("app does not depend on the widget target — it could embed a stale build")
+    if share_id and not any(d.get("target") == share_id for d in deps):
+        fail("app does not depend on the share target — it could embed a stale build")
     for dep in deps:
         proxy_id = dep.get("targetProxy")
         proxy = objects.get(proxy_id, {})
@@ -160,6 +167,30 @@ def main() -> int:
             fail("WidgetSnapshot.swift is not compiled into the app")
         if shared_ref not in sources_refs(widget_phases):
             fail("WidgetSnapshot.swift is not compiled into the widget")
+        if share and shared_ref not in sources_refs(phases(share)):
+            fail("WidgetSnapshot.swift is not compiled into the share extension")
+
+    # The share inbox is the app<->extension contract and must be in both.
+    inbox_ref = next((k for k, v in file_refs.items() if v.get("path") == "ShareInbox.swift"), None)
+    if not inbox_ref:
+        fail("ShareInbox.swift has no file reference")
+    elif share:
+        if inbox_ref not in sources_refs(app_phases):
+            fail("ShareInbox.swift is not compiled into the app")
+        if inbox_ref not in sources_refs(phases(share)):
+            fail("ShareInbox.swift is not compiled into the share extension")
+
+    # Live Activity attributes must be in the app AND the widget.
+    attrs_ref = next(
+        (k for k, v in file_refs.items() if v.get("path") == "StudyActivityAttributes.swift"), None
+    )
+    if not attrs_ref:
+        fail("StudyActivityAttributes.swift has no file reference")
+    else:
+        if attrs_ref not in sources_refs(app_phases):
+            fail("StudyActivityAttributes.swift is not compiled into the app")
+        if attrs_ref not in sources_refs(widget_phases):
+            fail("StudyActivityAttributes.swift is not compiled into the widget")
 
     # Every widget source must actually be in the widget's Sources phase.
     widget_sources = sources_refs(widget_phases)
@@ -228,10 +259,15 @@ def main() -> int:
     if len(app_settings) != 2 or len(widget_settings) != 2:
         fail("expected exactly Debug and Release configurations on each target")
 
+    share_settings = settings_for(share) if share else []
+
     for label, settings_list, want_id in (
         ("app", app_settings, "com.acestudy.Ace"),
         ("widget", widget_settings, "com.acestudy.Ace.AceWidget"),
+        ("share", share_settings, "com.acestudy.Ace.AceShare"),
     ):
+        if not settings_list:
+            continue
         for settings in settings_list:
             if settings.get("PRODUCT_BUNDLE_IDENTIFIER") != want_id:
                 fail(f"{label} bundle id is {settings.get('PRODUCT_BUNDLE_IDENTIFIER')}, want {want_id}")
@@ -245,9 +281,10 @@ def main() -> int:
                 fail(f"{label} entitlements missing: {ents}")
 
     # A widget extension that isn't SKIP_INSTALL breaks archiving.
-    for settings in widget_settings:
-        if settings.get("SKIP_INSTALL") != "YES":
-            fail("widget must set SKIP_INSTALL = YES or archiving fails validation")
+    for label, settings_list in (("widget", widget_settings), ("share", share_settings)):
+        for settings in settings_list:
+            if settings.get("SKIP_INSTALL") != "YES":
+                fail(f"{label} must set SKIP_INSTALL = YES or archiving fails validation")
 
     # ---- App Group must match on both sides ----------------------------------------------------------
     def app_groups(path: str) -> list:
@@ -257,10 +294,13 @@ def main() -> int:
     try:
         app_g = app_groups("Config/Ace.entitlements")
         widget_g = app_groups("Config/AceWidget.entitlements")
+        share_g = app_groups("Config/AceShare.entitlements")
         if not app_g:
             fail("app entitlements declare no App Group")
         elif app_g != widget_g:
             fail(f"App Groups differ: app {app_g} vs widget {widget_g}")
+        elif app_g != share_g:
+            fail(f"App Groups differ: app {app_g} vs share {share_g}")
         else:
             # And the code must use the same identifier.
             source = (ROOT / "Shared" / "WidgetSnapshot.swift").read_text()
@@ -270,15 +310,43 @@ def main() -> int:
     except Exception as exc:                                    # noqa: BLE001
         fail(f"could not read entitlements: {exc}")
 
-    # The widget's extension point must be declared.
+    # Each extension's point must be declared, or it never appears at all.
+    for plist_name, want_point in (
+        ("AceWidget-Info.plist", "com.apple.widgetkit-extension"),
+        ("AceShare-Info.plist", "com.apple.share-services"),
+    ):
+        try:
+            with open(ROOT / "Config" / plist_name, "rb") as handle:
+                extension_plist = plistlib.load(handle)
+            point = extension_plist.get("NSExtension", {}).get("NSExtensionPointIdentifier")
+            if point != want_point:
+                fail(f"{plist_name} extension point is {point!r}, want {want_point}")
+        except Exception as exc:                                # noqa: BLE001
+            fail(f"could not read {plist_name}: {exc}")
+
+    # The share extension needs a principal class that actually exists.
     try:
-        with open(ROOT / "Config" / "AceWidget-Info.plist", "rb") as handle:
-            widget_plist = plistlib.load(handle)
-        point = widget_plist.get("NSExtension", {}).get("NSExtensionPointIdentifier")
-        if point != "com.apple.widgetkit-extension":
-            fail(f"widget extension point is {point!r}, want com.apple.widgetkit-extension")
+        with open(ROOT / "Config" / "AceShare-Info.plist", "rb") as handle:
+            share_plist = plistlib.load(handle)
+        principal = share_plist.get("NSExtension", {}).get("NSExtensionPrincipalClass", "")
+        class_name = principal.split(".")[-1]
+        source = (ROOT / "AceShare" / "ShareViewController.swift").read_text()
+        if f"class {class_name}" not in source:
+            fail(f"share extension principal class “{class_name}” is not defined")
     except Exception as exc:                                    # noqa: BLE001
-        fail(f"could not read the widget Info.plist: {exc}")
+        fail(f"could not verify the share extension principal class: {exc}")
+
+    # The privacy manifest must exist and be copied into the app bundle.
+    privacy_ref = next(
+        (k for k, v in file_refs.items() if v.get("path") == "PrivacyInfo.xcprivacy"), None
+    )
+    if not privacy_ref:
+        fail("PrivacyInfo.xcprivacy has no file reference — App Store submission requires one")
+    else:
+        resources = app_phases.get("PBXResourcesBuildPhase", {})
+        copied = {objects[bf]["fileRef"] for bf in resources.get("files", [])}
+        if privacy_ref not in copied:
+            fail("PrivacyInfo.xcprivacy is not copied into the app bundle")
 
     # ---- build file hygiene --------------------------------------------------------------------------
     for bf_id, bf in build_files.items():

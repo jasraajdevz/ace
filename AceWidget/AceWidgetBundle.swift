@@ -18,5 +18,8 @@ import WidgetKit
 struct AceWidgetBundle: WidgetBundle {
     var body: some Widget {
         AceWidget()
+        #if os(iOS)
+        StudyLiveActivity()
+        #endif
     }
 }

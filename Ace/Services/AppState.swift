@@ -70,6 +70,12 @@ final class AppState {
     /// so neither the music nor the voice has to know about the other.
     var onSpeakingChanged: ((Bool) -> Void)?
 
+    // MARK: Economics
+
+    /// Metering, entitlements and the paywall (Part 5). The paywall is off by
+    /// default, so this behaves as Unlimited until the flag is flipped.
+    let store: StoreController
+
     // MARK: Safety
 
     let safety: SafetyCoordinator
@@ -88,6 +94,7 @@ final class AppState {
     init(providers: ProviderController? = nil) {
         self.providers = providers ?? ProviderController()
         self.safety = SafetyCoordinator()
+        self.store = StoreController()
     }
 
     /// Called once the profile is loaded, and again whenever it changes.
@@ -96,6 +103,7 @@ final class AppState {
     /// `AppState` has no business knowing how the student is stored.
     func apply(_ settings: StudentSettings) {
         self.settings = settings
+        store.hasOwnKey = providers.hasKey
         persona = VoiceRoster.persona(id: settings.voicePersonaID)
         prosody = persona.baseProsody
         safety.region = settings.supportRegion
@@ -176,10 +184,15 @@ final class AppState {
 
     func endVoiceSession() async {
         await providers.endSession()
+        store.endSession()
     }
 
-    /// Reset per-session behavioural signals.
+    /// Whether Live Mode may be used right now — the cap, when the paywall is on.
+    var canUseRealtimeVoice: Bool { store.canUseRealtimeVoice }
+
+    /// Reset per-session behavioural signals, and start metering.
     func beginSession() {
+        store.beginSession(isLive: providerMode == .live)
         signals = BehaviourSignals()
         mood = .unknown
         prosody = persona.baseProsody

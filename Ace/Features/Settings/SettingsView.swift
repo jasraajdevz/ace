@@ -26,6 +26,8 @@ struct SettingsView: View {
     @State private var soundsEnabled = SoundCuePlayer.shared.isEnabled
     @State private var hapticsEnabled = HapticSettings.shared.isEnabled
     @State private var isConfirmingReset = false
+    @State private var isShowingPaywall = false
+    @State private var isPaywallEnabled = PaywallFlag.isEnabled
     @State private var quietMode = DoNotDisturbState.off
     @State private var musicScene: FocusScene = UserDefaults.standard.string(forKey: "ace.music.scene")
         .flatMap(FocusScene.init(rawValue:)) ?? .off
@@ -41,6 +43,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: Space.xxl) {
                         modeSection
                         presenceSection
+                        UsageSection(store: appState.store) { isShowingPaywall = true }
                         voiceSection
                         aboutYouSection
                         feedbackSection
@@ -64,6 +67,10 @@ struct SettingsView: View {
                     .foregroundStyle(Ink.accent)
                 }
             }
+        }
+        .sheet(isPresented: $isShowingPaywall) {
+            PaywallView(store: appState.store) { isShowingPaywall = false }
+                .preferredColorScheme(.dark)
         }
         .preferredColorScheme(.dark)
         .onDisappear {
@@ -304,6 +311,27 @@ struct SettingsView: View {
 
             AceButton(title: "Reset everything", systemImage: "trash", kind: .destructive) {
                 isConfirmingReset = true
+            }
+
+            // The paywall switch. It ships OFF; this is how it gets turned on
+            // once the pricing worksheet says the numbers work (§Part 5).
+            AceCard {
+                Toggle(isOn: $isPaywallEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Enable plans and limits")
+                            .font(Typeface.callout)
+                            .foregroundStyle(Ink.textPrimary)
+                        Text("Off by default. With it off, nothing is capped and no purchase is ever offered.")
+                            .font(Typeface.caption)
+                            .foregroundStyle(Ink.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .tint(Ink.accent)
+                .onChange(of: isPaywallEnabled) { _, newValue in
+                    PaywallFlag.isEnabled = newValue
+                    Task { await appState.store.refreshEntitlements() }
+                }
             }
 
             Text("Ace v\(Bundle.appVersion) · everything stays on this device")

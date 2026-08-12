@@ -110,6 +110,11 @@ enum AllChecks {
             FocusModeChecks.all,
             SpeakingDrillChecks.all,
             VoiceSafetyChecks.all,
+            UsageMeterChecks.all,
+            TierChecks.all,
+            PricingChecks.all,
+            PaywallFlagChecks.all,
+            ShareInboxChecks.all,
             DemoDeckChecks.all,
             DesignSystemChecks.all,
         ]
