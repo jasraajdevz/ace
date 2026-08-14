@@ -1070,3 +1070,25 @@ spent looking at a permission dialog.
 
 The clock now starts inside the branch where recording actually began.
 
+## D66 — Closing Settings stopped resetting how Ace speaks
+
+`apply` runs whenever the profile is re-read, and that includes Settings'
+`.onDisappear` — which fires whether or not anything was edited. It reset
+`prosody` to the persona's baseline every time.
+
+So opening Settings mid-session to glance at a streak threw away however far the
+voice matching had eased toward how the student actually sounded. That is the
+same defect as D-the-prosody-freeze, arriving from the other direction: one
+stopped it easing, this one undid the easing it had already done.
+
+Delivery now resets only when the *voice* changed, which is the case it was
+written for. Everything else on the profile still propagates.
+
+Checked and cleared in the same pass, because they were reported as missing:
+first-run onboarding does ask for name, grade, subjects and voice, writes all
+four to the profile, sets `hasCompletedOnboarding` and saves — and the root view
+gates on that flag. Settings does expose both the voice roster and the full
+grade list, and both write through to the profile. The voice picker applies
+immediately; the grade applies when Settings closes. That is the code as it
+stands, verified by reading it — none of it has ever been run on a device.
+

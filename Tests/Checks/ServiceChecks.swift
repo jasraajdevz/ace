@@ -670,3 +670,85 @@ private enum MoodProbe {
             && (0...1).contains(p.volume) && p.preDelay >= 0
     }
 }
+
+// MARK: - Re-reading the profile
+
+/// `apply` runs whenever the profile is re-read — including Settings'
+/// `.onDisappear`, which fires whether or not anything was edited.
+///
+/// It used to snap `prosody` back to the persona's baseline every time, so
+/// opening Settings mid-session to glance at a streak discarded however far the
+/// voice matching had eased toward how the student actually sounded. §9's whole
+/// point is that delivery eases rather than snaps; resetting it on an unrelated
+/// screen dismissal is the same defect as never easing at all, arriving later.
+enum ProfileApplyChecks {
+    static let all = CheckSuite(name: "Re-reading the profile") { run in
+        guard let r = runAsync({ await ApplyProbe.run() }) else {
+            run.expect(false, "apply probe timed out")
+            return
+        }
+
+        run.expect(r.easedAwayFromBaseline,
+                   "the probe should have moved prosody off baseline first")
+        run.expect(r.survivedUnchangedApply,
+                   "re-applying an unchanged profile must not reset delivery")
+        run.expect(r.resetOnPersonaChange,
+                   "choosing a different voice SHOULD reset delivery to its baseline")
+        run.expectEqual(r.personaAfterChange, r.expectedPersona,
+                        "and the new persona takes effect")
+        run.expectEqual(r.nameAfterApply, "Sam",
+                        "other profile fields still propagate")
+    }
+}
+
+@MainActor
+private enum ApplyProbe {
+    struct Result: Sendable {
+        var easedAwayFromBaseline = false
+        var survivedUnchangedApply = false
+        var resetOnPersonaChange = false
+        var personaAfterChange = ""
+        var expectedPersona = ""
+        var nameAfterApply = ""
+    }
+
+    static func run() async -> Result {
+        var out = Result()
+        let appState = AppState()
+
+        var settings = StudentSettings()
+        settings.name = "Sam"
+        settings.voicePersonaID = VoiceRoster.default.id
+        appState.apply(settings)
+        appState.beginSession()
+
+        out.nameAfterApply = appState.settings.name
+        let baseline = appState.prosody
+
+        // Let the voice ease somewhere.
+        for _ in 0..<6 {
+            await appState.updateMood(text: "i am so lost i have no idea what this means")
+        }
+        let eased = appState.prosody
+        out.easedAwayFromBaseline = eased != baseline
+
+        // Settings opened and closed, nothing edited.
+        appState.apply(settings)
+        out.survivedUnchangedApply = appState.prosody == eased
+
+        // A different voice chosen — this one SHOULD start again from its baseline.
+        if let other = VoiceRoster.all.first(where: { $0.id != VoiceRoster.default.id }) {
+            var changed = settings
+            changed.voicePersonaID = other.id
+            appState.apply(changed)
+            out.resetOnPersonaChange = appState.prosody == other.baseProsody
+            out.personaAfterChange = appState.persona.id
+            out.expectedPersona = other.id
+        } else {
+            out.resetOnPersonaChange = true
+            out.personaAfterChange = ""
+            out.expectedPersona = ""
+        }
+        return out
+    }
+}

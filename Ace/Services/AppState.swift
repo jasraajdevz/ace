@@ -136,8 +136,21 @@ final class AppState {
     func apply(_ settings: StudentSettings) {
         self.settings = settings
         store.hasOwnKey = providers.hasKey
-        persona = VoiceRoster.persona(id: settings.voicePersonaID)
-        prosody = persona.baseProsody
+
+        // Only reset delivery when the *voice* actually changed.
+        //
+        // `apply` runs whenever the profile is re-read — including on Settings'
+        // `.onDisappear`, which fires whether or not anything was edited. It used
+        // to snap `prosody` back to the persona's baseline unconditionally, so
+        // opening Settings to glance at a streak mid-session threw away however
+        // far the voice matching had eased toward how the student sounded, and
+        // §9's whole point is that it eases rather than snaps.
+        let newPersona = VoiceRoster.persona(id: settings.voicePersonaID)
+        if newPersona.id != persona.id {
+            persona = newPersona
+            prosody = newPersona.baseProsody
+        }
+
         safety.region = settings.supportRegion
         safety.studentName = settings.name
     }
