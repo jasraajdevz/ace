@@ -602,3 +602,51 @@ Model prices move faster than app releases, and a hard-coded number that silentl
 goes stale produces a pricing worksheet that is confidently wrong — which is
 worse than no worksheet. Every `RateCard` has a `checkedOn` field, the report
 prints it, and there's a test asserting it isn't empty.
+
+
+---
+
+## After Part 5 — closing the type-check gap
+
+### D44 · The SwiftData layer is type-checked by stripping the macro
+
+Xcode is not going to be available on this machine, so the standing "type errors
+in the screens are the one class of defect we can't catch" caveat had to stop
+being permanent.
+
+`Tools/gen/typecheck_data.py` copies every SwiftData-bound file to a scratch
+directory, mechanically strips the attributes the compiler plugin would expand
+(`@Model` → `@Observable` + `PersistentModel`, `@Attribute(…)` and
+`@Relationship(…)` removed), and compiles the copies against
+`swiftdata_shim.swift` alongside the *real* `Core/`, `DesignSystem/`,
+`Services/`, `Features/Safety/` and `Shared/` sources.
+
+Two decisions inside that made it work:
+
+**The shim mirrors the real signatures exactly**, including `throws` and generic
+constraints. A shim that accepted more than SwiftData does would hide errors,
+which is worse than having no shim — the `delete(model:)` generic is the reason
+`SettingsView.resetAll` can't loop over `[any PersistentModel.Type]`, and the
+shim has to preserve that.
+
+**iOS-only SwiftUI is handled with `-Xfrontend -disable-availability-checking`,
+not with more shims.** `fullScreenCover`, `.topBarLeading` and
+`navigationBarTitleDisplayMode` don't exist on macOS. Writing stand-ins would
+mean a hand-written signature could be subtly wrong, letting a broken call site
+pass here and fail in Xcode. Disabling the availability checker keeps the *real*
+SwiftUI declarations and therefore real signature checking, and simply drops the
+"unavailable on this platform" complaints — which are true on macOS and
+irrelevant to the iOS build.
+
+**It found three real bugs on its first complete run**: `TextField` called as
+`(_:text:axis:prompt:)` in `SourceDetailView`, `TutorView` and `BodyDoubleView`,
+where SwiftUI's initialiser is `(_:text:prompt:axis:)`. All three would have
+failed the first Xcode build.
+
+The harness was then verified adversarially, because a check that only ever
+passes is worthless: four deliberate errors injected into a screen file — a
+wrong argument order, a typo'd method, a nonexistent property and a type
+mismatch — were caught 4/4, while `swiftc -parse` caught 0/4.
+
+What it still does not prove: that the real macro expands the way the shim
+models it, that the schema is valid at runtime, or anything about layout.

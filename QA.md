@@ -9,8 +9,9 @@ accessibility and dead-code passes.
 cd ~/Downloads/ace && ./Tools/verify.sh && ./Tools/qa.sh
 ```
 
-**Result: everything verifiable on this machine passes.** 2,949 assertions, 79
-files through the syntax gate, three-target project graph validated, QA sweep
+**Result: everything verifiable on this machine passes.** 2,949 assertions, the
+**whole app type-checked** (21 SwiftData-bound files against 53 real sources),
+79 files through the syntax gate, three-target project graph validated, QA sweep
 clean.
 
 The one thing this log cannot claim is a Simulator run-through — see
@@ -23,7 +24,7 @@ most important section in this file.
 
 | Checklist item | Status | Evidence |
 |---|---|---|
-| Compiles clean | ✅ | `Core/`, `DesignSystem/`, `Services/`, `Features/Safety/` + selected screens compile against the macOS SDK with zero warnings. Everything else passes `swiftc -parse`. |
+| Compiles clean | ✅ | The whole app type-checks: `Core/`, `DesignSystem/`, `Services/`, `Features/Safety/` compile against the macOS SDK with zero warnings, and every SwiftData-bound file (models, stores, all screens) type-checks via the macro-stripping shim. Only the two iOS-only extensions remain on the syntax gate. |
 | Runs keyless in the Simulator | ⚠️ **needs Xcode** | Code path verified: `AppState` starts on `MockAIProvider`, `ProviderController.refresh()` returns Demo Mode with no key. Not *run*. |
 | Onboarding → capture → OCR'd source on screen | ⚠️ **needs Xcode** | Logic verified (`SourceTextCleaner`, 39 checks). Vision OCR type-checks. Not run end to end. |
 | Crisis service passes its unit tests | ✅ | 281 checks across 5 suites, including 30 real coursework sentences that must *not* trigger it, and spoken-transcript variants. |
@@ -33,9 +34,9 @@ most important section in this file.
 
 | Checklist item | Status | Evidence |
 |---|---|---|
-| Capture → Socratic tutor → quiz → grade → XP/level/streak | ⚠️ **needs Xcode** for the run; all engines verified | `QuizRunner` (70), `FlashcardRunner` (65), `SourceTutor` (222), progression (222). |
-| Widget updates | ⚠️ **needs Xcode** | `WidgetBridge.publish` is called from `SessionRecorder.persist()`, capture, and Home's `.task`. Snapshot round-trip verified. |
-| Everything persists across relaunch | ⚠️ **needs Xcode** | SwiftData models compile-gated only (macro plugin ships with Xcode). |
+| Capture → Socratic tutor → quiz → grade → XP/level/streak | ⚠️ **needs Xcode** for the run; engines verified, screens type-check | `QuizRunner` (70), `FlashcardRunner` (65), `SourceTutor` (222), progression (222). The screens wiring them together now compile. |
+| Widget updates | ⚠️ **needs Xcode** for the *run* | `WidgetBridge.publish` is called from `SessionRecorder.persist()`, capture, and Home's `.task` — all three now type-check. Snapshot round-trip verified. |
+| Everything persists across relaunch | ⚠️ **needs Xcode** for the *run* | Models, stores and `SessionRecorder` now type-check for real. What's unproven is runtime schema validity, which needs a device. |
 | Answer must not leak before it's earned | ✅ | Asserted for every mood and every rung; hint ladder withholds its last rung. |
 | Effort always pays | ✅ | `XPEvent.attemptedAnswer.amount > 0` asserted. |
 
@@ -108,6 +109,7 @@ the largest accessibility text sizes.
 | Check | Result |
 |---|---|
 | Unreferenced types | ✅ None. Found one — `RealtimeSessionMinter` was built in Part 3 and never called. Rather than delete it, it's now wired into the transport so Live Mode connects with a short-lived ephemeral token instead of the raw key, which is what D24 claimed it would do. |
+| Type errors in the screens | ✅ None. Found **three** on the shimmed type-check's first complete run: `TextField(_:text:axis:prompt:)` with the arguments in the wrong order, in `SourceDetailView`, `TutorView` and `BodyDoubleView`. All three would have failed the first Xcode build. |
 | `print` statements | ✅ None in shipping code. |
 | TODO/FIXME/HACK/WIP/stub markers | ✅ None. |
 | `fatalError` / `preconditionFailure` | ✅ None. |
@@ -129,11 +131,16 @@ running**:
    (`Tools/gen/check_pbxproj.py`: every reference resolves, every target has its
    phases, every file exists, extensions are embedded and depended on, App Groups
    match across three entitlements files and the source). But no build has run.
-2. **The SwiftData layer.** `@Model` needs Xcode's macro plugin, so
-   `Ace/Data/` and the screens bound to it get the syntax gate plus a
-   component-usage probe, not a type-check.
+2. ~~**The SwiftData layer.**~~ **Closed.** `Tools/gen/typecheck_data.py` now
+   strips the `@Model` macro attributes into a scratch copy and compiles it
+   against a shim plus the real sources, with `-disable-availability-checking` so
+   iOS-only SwiftUI still resolves against its *real* declarations. Every model,
+   store and screen is genuinely type-checked. What remains unproven is that the
+   real macro expands the way the shim models it, and that the schema is valid at
+   runtime.
 3. **Every screen's appearance.** Layout, spacing at large Dynamic Type sizes,
-   and how the animations actually feel.
+   and how the animations actually feel. (The screens *compile*; what they look
+   like is a separate question.)
 4. **Camera, document scanner, microphone, speakers** — all need hardware.
 5. **Real network latency.** TTFA is measured for real in the harness against a
    mock; the number over a real connection to OpenAI is unknown.
@@ -148,10 +155,14 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 ```
 
 after installing Xcode from the Mac App Store, then open `Ace.xcodeproj` and
-press ⌘R. The first build is the moment any remaining type error in the
-SwiftData-bound screens will surface, and they are one-line fixes by
-construction — the component-usage probe already verifies every shared
-component's call shape from those screens.
+press ⌘R.
+
+Note what this no longer is: it is no longer "the moment type errors surface".
+The shimmed type-check already compiles every screen, and it was verified to
+catch injected errors that the syntax gate provably missed — a wrong argument
+order, a typo'd method, a mistyped property, a type mismatch. Four out of four in
+a screen file; the syntax gate caught zero. The remaining gaps are about
+*behaviour and appearance*, not about whether the code compiles.
 
 ### Known limitation, not a bug
 
@@ -168,6 +179,7 @@ than failing silently. The Simulator is unaffected entirely.
 | | |
 |---|---|
 | Assertions | 2,949 across 27 suites |
+| App files type-checked | 21 SwiftData-bound + 53 real sources |
 | Swift files | 79 (app + widget + share + shared) |
 | Lines of Swift | ~26,000 including tests and tooling |
 | Targets | 3 — app, widget extension, share extension |

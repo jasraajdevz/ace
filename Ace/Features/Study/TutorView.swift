@@ -204,8 +204,13 @@ struct TutorView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text(voice.isListening ? "Stop talking" : "Talk out loud"))
 
-                TextField("", text: $draft, axis: .vertical,
-                          prompt: Text("Say what you're thinking…").foregroundStyle(Ink.textTertiary))
+                // `prompt` precedes `axis` — SwiftUI's initialiser is
+                // `TextField(_:text:prompt:axis:)`.
+                TextField("",
+                          text: $draft,
+                          prompt: Text("Say what you're thinking…")
+                            .foregroundStyle(Ink.textTertiary),
+                          axis: .vertical)
                     .font(Typeface.body)
                     .foregroundStyle(Ink.textPrimary)
                     .lineLimit(1...4)

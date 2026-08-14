@@ -93,9 +93,13 @@ struct BodyDoubleView: View {
                     subtitle: "Tell me the plan and I'll sit with you while you do it. I'll stay quiet unless you need me."
                 )
 
-                TextField("", text: $goalDraft, axis: .vertical,
+                // `prompt` precedes `axis` — SwiftUI's initialiser is
+                // `TextField(_:text:prompt:axis:)`.
+                TextField("",
+                          text: $goalDraft,
                           prompt: Text("let's go till chapter 4")
-                            .foregroundStyle(Ink.textTertiary))
+                            .foregroundStyle(Ink.textTertiary),
+                          axis: .vertical)
                     .font(Typeface.title3)
                     .foregroundStyle(Ink.textPrimary)
                     .lineLimit(1...3)

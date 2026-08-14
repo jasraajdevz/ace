@@ -178,7 +178,8 @@ cd ~/Downloads/ace && ./Tools/verify.sh
 ```
 
 It compiles the logic layers against the macOS SDK, runs 2,949 assertions,
-parses every Swift file in both targets, and validates the Xcode project's whole
+type-checks the whole app (including the SwiftData-bound screens, via a shim that
+stands in for Xcode's `@Model` macro), and validates the Xcode project's whole
 object graph — dangling references, missing build phases, whether the app
 actually embeds the widget, whether the App Group matches on both sides. It
 takes a few seconds.

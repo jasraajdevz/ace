@@ -382,9 +382,13 @@ struct SourceDetailView: View {
                         .foregroundStyle(Ink.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    TextField("", text: $draftNote, axis: .vertical,
+                    // `prompt` precedes `axis` — SwiftUI's initialiser is
+                    // `TextField(_:text:prompt:axis:)`.
+                    TextField("",
+                              text: $draftNote,
                               prompt: Text("studying photosynthesis, test Friday")
-                                .foregroundStyle(Ink.textTertiary))
+                                .foregroundStyle(Ink.textTertiary),
+                              axis: .vertical)
                         .font(Typeface.body)
                         .foregroundStyle(Ink.textPrimary)
                         .lineLimit(1...4)
