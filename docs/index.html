@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ace — a voice-first study companion for iOS</title>
+<meta name="description" content="Interactive preview of Ace, a voice-first AI study companion for iOS. Built from the app's shipping design tokens.">
+<style>
+/* ---------------------------------------------------------------------------
+   Every colour, radius and spacing value below is copied from the app's
+   design tokens — Ace/DesignSystem/Theme.swift. Nothing here is eyeballed.
+   --------------------------------------------------------------------------- */
+:root{
+  --background:#05050B; --surface-sunken:#0B0B14; --surface:#13131E;
+  --surface-raised:#1E1E2D; --surface-active:#29293C;
+  --text-primary:#F7F7FC; --text-secondary:#B6B6CD; --text-tertiary:#9292AB;
+  --text-on-accent:#05050B;
+  --accent:#9165FF; --accent-alt:#3DDCFF; --accent-deep:#5B3BD9; --accent-magenta:#C85CFF;
+  --success:#3DDC97; --warning:#FFC53D; --danger:#FF7A8F;
+  --flame:#FF9752; --care:#F0B27A; --calm:#9BB0C6;
+  --stroke:rgba(255,255,255,.08); --stroke-strong:rgba(255,255,255,.16);
+  --stroke-highlight:rgba(255,255,255,.14);
+
+  --sp-hair:2px; --sp-xs:4px; --sp-s:8px; --sp-m:12px; --sp-l:16px;
+  --sp-xl:24px; --sp-xxl:32px; --sp-xxxl:48px; --sp-screen:20px;
+  --r-xs:8px; --r-sm:12px; --r-md:18px; --r-lg:24px; --r-xl:32px; --r-pill:999px;
+
+  --font:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  --sheen:linear-gradient(180deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.02) 42%,rgba(255,255,255,0) 100%);
+  --accent-ramp:linear-gradient(180deg,#A880FF 0%,var(--accent) 55%,#7C5CFF 100%);
+  --brand:linear-gradient(135deg,var(--accent-alt) 0%,var(--accent) 50%,var(--accent-magenta) 100%);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--background); color:var(--text-primary); font-family:var(--font);
+  line-height:1.5; overflow-x:hidden;
+  background-image:radial-gradient(760px 520px at 12% -6%, rgba(145,101,255,.20), transparent 62%),
+                   radial-gradient(620px 460px at 92% 4%, rgba(61,220,255,.10), transparent 60%);
+  background-attachment:fixed;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:var(--sp-xxl) var(--sp-screen) var(--sp-xxxl)}
+
+/* ---- masthead ---- */
+header{padding:var(--sp-xxl) 0 var(--sp-xl)}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:var(--sp-s);
+  font-size:.72rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--text-tertiary);border:1px solid var(--stroke);border-radius:var(--r-pill);
+  padding:6px 14px;background:var(--surface);margin-bottom:var(--sp-l);
+}
+.eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+h1{
+  font-size:clamp(2.6rem,7vw,4.4rem);font-weight:900;letter-spacing:-.9px;line-height:1.02;
+  background:var(--brand);-webkit-background-clip:text;background-clip:text;color:transparent;
+  margin-bottom:var(--sp-l);padding-bottom:.06em;
+}
+.lede{font-size:clamp(1.02rem,2.2vw,1.22rem);color:var(--text-secondary);max-width:62ch}
+.lede strong{color:var(--text-primary);font-weight:600}
+
+/* ---- honesty notice: this is a preview, not the app ---- */
+.notice{
+  margin:var(--sp-xl) 0 0;padding:var(--sp-l);border-radius:var(--r-md);
+  background:var(--surface);border:1px solid var(--stroke);
+  border-left:3px solid var(--warning);color:var(--text-secondary);font-size:.94rem;
+}
+.notice b{color:var(--text-primary)}
+
+/* ---- layout ---- */
+.stage{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:var(--sp-xxl);
+  align-items:start;margin-top:var(--sp-xxxl)}
+@media(max-width:820px){.stage{grid-template-columns:1fr}}
+
+/* ---- phone ---- */
+.phone{
+  width:300px;max-width:100%;margin:0 auto;aspect-ratio:9/19.5;border-radius:44px;
+  background:var(--background);border:1px solid var(--stroke-strong);
+  box-shadow:0 44px 90px rgba(0,0,0,.6), 0 0 0 9px #0d0d15, 0 0 60px rgba(145,101,255,.16);
+  position:relative;overflow:hidden;display:flex;flex-direction:column;
+  position:sticky;top:var(--sp-xl);
+}
+@media(max-width:820px){.phone{position:static}}
+.notch{position:absolute;top:9px;left:50%;transform:translateX(-50%);
+  width:88px;height:24px;border-radius:var(--r-pill);background:#000;z-index:5}
+.screen{flex:1;padding:42px var(--sp-l) var(--sp-l);overflow-y:auto;scrollbar-width:none}
+.screen::-webkit-scrollbar{display:none}
+.pane{display:none;animation:rise .34s cubic-bezier(.22,1,.36,1)}
+.pane.on{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.pane{animation:none}}
+
+/* ---- app primitives, matching AceCard / AceButton ---- */
+.card{
+  background:linear-gradient(180deg,var(--surface) 0%,rgba(19,19,30,.86) 100%);
+  border-radius:var(--r-lg);padding:var(--sp-l);position:relative;overflow:hidden;
+  border:1px solid transparent;
+  background-clip:padding-box;
+  box-shadow:0 5px 14px rgba(0,0,0,.44);margin-bottom:var(--sp-m);
+}
+.card::before{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:var(--sheen);pointer-events:none}
+.card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  padding:1px;background:linear-gradient(180deg,var(--stroke-highlight),var(--stroke));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude}
+.card>*{position:relative;z-index:1}
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:var(--sp-s);width:100%;
+  padding:var(--sp-l) var(--sp-xl);border:none;border-radius:var(--r-md);cursor:pointer;
+  background:var(--accent-ramp);color:var(--text-on-accent);
+  font-family:inherit;font-size:1rem;font-weight:600;position:relative;overflow:hidden;
+  box-shadow:0 11px 26px rgba(0,0,0,.52),0 0 22px rgba(145,101,255,.42);
+  transition:transform .12s cubic-bezier(.22,1,.36,1);
+}
+.btn::before{content:"";position:absolute;inset:0;background:var(--sheen);pointer-events:none}
+.btn:active{transform:scale(.97)}
+.btn.secondary{background:linear-gradient(180deg,var(--surface-raised),rgba(30,30,45,.86));
+  color:var(--text-primary);box-shadow:none;border:1px solid var(--stroke)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:var(--r-pill);
+  background:var(--surface-raised);border:1px solid var(--stroke);
+  font-size:.78rem;font-weight:600;color:var(--text-secondary)}
+.chip.on{background:rgba(145,101,255,.18);border-color:rgba(145,101,255,.42);color:var(--text-primary)}
+
+.hd{font-size:1.44rem;font-weight:900;letter-spacing:-.9px;margin-bottom:var(--sp-xs)}
+.sub{font-size:.84rem;color:var(--text-tertiary);margin-bottom:var(--sp-l)}
+.lbl{font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--text-tertiary);margin-bottom:6px}
+
+/* ---- home ---- */
+.ringrow{display:flex;align-items:center;gap:var(--sp-l)}
+.ring{width:74px;height:74px;border-radius:50%;flex:none;display:grid;place-items:center;
+  background:conic-gradient(var(--accent) 0turn .62turn,var(--surface-active) .62turn 1turn);
+  position:relative;filter:drop-shadow(0 0 12px rgba(145,101,255,.4))}
+.ring::after{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--surface)}
+.ring span{position:relative;z-index:1;font-size:1.42rem;font-weight:900;letter-spacing:-.5px}
+.streak{display:flex;align-items:center;gap:6px;font-weight:700;color:var(--flame);font-size:.94rem}
+.srcrow{display:flex;align-items:center;gap:var(--sp-m)}
+.srcicon{width:38px;height:38px;border-radius:var(--r-sm);flex:none;display:grid;place-items:center;
+  background:rgba(145,101,255,.18);font-size:1.05rem}
+
+/* ---- tutor ---- */
+.turn{margin-bottom:var(--sp-m);max-width:88%}
+.turn .who{font-size:.64rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--text-tertiary);margin-bottom:5px}
+.bub{padding:var(--sp-m) var(--sp-l);border-radius:var(--r-md);font-size:.92rem;line-height:1.52}
+.turn.ace .bub{background:var(--surface);border:1px solid var(--stroke);border-bottom-left-radius:6px}
+.turn.me{margin-left:auto}
+.turn.me .who{text-align:right}
+.turn.me .bub{background:rgba(145,101,255,.2);border:1px solid rgba(145,101,255,.34);
+  border-bottom-right-radius:6px}
+.orb{width:56px;height:56px;border-radius:50%;margin:var(--sp-l) auto 0;background:var(--brand);
+  box-shadow:0 0 30px rgba(145,101,255,.6);animation:breathe 2.6s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.09);opacity:1}}
+@media(prefers-reduced-motion:reduce){.orb{animation:none}}
+
+/* ---- quiz ---- */
+.opt{width:100%;text-align:left;padding:var(--sp-m) var(--sp-l);border-radius:var(--r-md);
+  background:var(--surface-raised);border:1px solid var(--stroke);color:var(--text-primary);
+  font-family:inherit;font-size:.9rem;margin-bottom:var(--sp-s);cursor:pointer;
+  transition:border-color .16s,background .16s}
+.opt:hover{border-color:var(--stroke-strong)}
+.opt.right{background:rgba(61,220,151,.16);border-color:var(--success);color:var(--success)}
+.opt.wrong{background:rgba(255,122,143,.14);border-color:var(--danger);color:var(--danger)}
+
+/* ---- body double ---- */
+.timer{font-size:3rem;font-weight:900;letter-spacing:-2px;font-variant-numeric:tabular-nums;
+  text-align:center;margin:var(--sp-l) 0 var(--sp-xs)}
+.bar{height:7px;border-radius:var(--r-pill);background:var(--surface-sunken);overflow:hidden;
+  margin:var(--sp-m) 0}
+.bar i{display:block;height:100%;width:52%;border-radius:inherit;background:var(--accent-ramp)}
+
+/* ---- level up ---- */
+.levelup{text-align:center;padding:var(--sp-xl) 0}
+.bigring{width:132px;height:132px;margin:0 auto var(--sp-l);border-radius:50%;display:grid;
+  place-items:center;background:conic-gradient(var(--accent) 0turn .34turn,var(--surface-active) .34turn 1turn);
+  position:relative;filter:drop-shadow(0 0 26px rgba(145,101,255,.62))}
+.bigring::after{content:"";position:absolute;inset:10px;border-radius:50%;background:var(--background)}
+.bigring div{position:relative;z-index:1}
+.bigring .n{font-size:2.5rem;font-weight:900;letter-spacing:-1.5px;line-height:1}
+.bigring .t{font-size:.6rem;font-weight:700;letter-spacing:.16em;color:var(--text-tertiary)}
+
+/* ---- screen switcher ---- */
+.tabs{display:flex;flex-wrap:wrap;gap:var(--sp-s);margin-bottom:var(--sp-l)}
+.tab{padding:9px 15px;border-radius:var(--r-pill);background:var(--surface);
+  border:1px solid var(--stroke);color:var(--text-secondary);font-family:inherit;
+  font-size:.83rem;font-weight:600;cursor:pointer;transition:.16s}
+.tab:hover{border-color:var(--stroke-strong);color:var(--text-primary)}
+.tab[aria-selected="true"]{background:rgba(145,101,255,.2);border-color:rgba(145,101,255,.46);
+  color:var(--text-primary)}
+
+/* ---- prose + system sections ---- */
+h2{font-size:1.62rem;font-weight:800;letter-spacing:-.5px;margin:var(--sp-xxxl) 0 var(--sp-m)}
+h3{font-size:1rem;font-weight:700;margin:var(--sp-xl) 0 var(--sp-s)}
+p{color:var(--text-secondary);margin-bottom:var(--sp-m);max-width:66ch}
+p code,li code{background:var(--surface-raised);border:1px solid var(--stroke);border-radius:6px;
+  padding:1px 6px;font-size:.86em;color:var(--text-primary)}
+ul{color:var(--text-secondary);padding-left:1.15rem;margin-bottom:var(--sp-m);max-width:66ch}
+li{margin-bottom:var(--sp-s)}
+li b{color:var(--text-primary)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--sp-m)}
+.stat{background:var(--surface);border:1px solid var(--stroke);border-radius:var(--r-md);
+  padding:var(--sp-l)}
+.stat .n{font-size:1.9rem;font-weight:900;letter-spacing:-1px;
+  background:var(--brand);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat .k{font-size:.78rem;color:var(--text-tertiary);margin-top:2px}
+
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:var(--sp-s)}
+.sw{border-radius:var(--r-sm);border:1px solid var(--stroke);overflow:hidden;background:var(--surface)}
+.sw .chipc{height:56px}
+.sw .meta{padding:var(--sp-s) 10px;font-size:.7rem}
+.sw .nm{font-weight:700;color:var(--text-primary)}
+.sw .hex{color:var(--text-tertiary);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.ratio{float:right;font-weight:700;color:var(--success)}
+
+.cta{display:flex;flex-wrap:wrap;gap:var(--sp-m);margin-top:var(--sp-xl)}
+.cta a{display:inline-flex;align-items:center;gap:var(--sp-s);padding:13px 22px;
+  border-radius:var(--r-md);text-decoration:none;font-weight:600;font-size:.94rem}
+.cta a.primary{background:var(--accent-ramp);color:var(--text-on-accent);
+  box-shadow:0 0 22px rgba(145,101,255,.4)}
+.cta a.ghost{background:var(--surface);border:1px solid var(--stroke);color:var(--text-primary)}
+footer{margin-top:var(--sp-xxxl);padding-top:var(--sp-xl);border-top:1px solid var(--stroke);
+  color:var(--text-tertiary);font-size:.84rem}
+.scroller{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.86rem;min-width:420px}
+th,td{text-align:left;padding:10px var(--sp-m);border-bottom:1px solid var(--stroke)}
+th{color:var(--text-tertiary);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase}
+td{color:var(--text-secondary)}td b{color:var(--text-primary)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow"><span class="dot"></span>iOS · Swift · SwiftUI · SwiftData</div>
+  <h1>Ace</h1>
+  <p class="lede">A voice-first study companion that <strong>talks you through what you're learning</strong> instead of quizzing you at it. Point it at a photo of your notes and it reads them, asks you questions, and matches how you sound — calmer when you're stressed, quicker when you're flying.</p>
+
+  <div class="notice">
+    <b>This page is a preview, not the app.</b> Ace is a native iOS app, so it can't run in a
+    browser — nothing on a web page can. What you can tap through below is built from Ace's
+    <em>actual</em> design tokens and copy, pulled straight from the source in this repo, so the
+    colours, spacing, type and words are exactly what the app renders. To run the real thing you
+    need Xcode and an iPhone or simulator — see the README.
+  </div>
+</header>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+
+      <section class="pane on" id="home">
+        <div class="lbl">Tuesday</div>
+        <div class="hd">Evening, Sam</div>
+        <div class="card">
+          <div class="ringrow">
+            <div class="ring"><span>7</span></div>
+            <div>
+              <div style="font-weight:700;font-size:1.02rem">Getting the hang of it</div>
+              <div class="streak">🔥 12 days running.</div>
+            </div>
+          </div>
+        </div>
+        <div class="lbl" style="margin-top:var(--sp-l)">Pick up where you left off</div>
+        <div class="card">
+          <div class="srcrow">
+            <div class="srcicon">🌿</div>
+            <div>
+              <div style="font-weight:600">Photosynthesis</div>
+              <div style="font-size:.78rem;color:var(--text-tertiary)">12 cards · quiz ready</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="srcrow">
+            <div class="srcicon">🧠</div>
+            <div>
+              <div style="font-weight:600">Neural networks</div>
+              <div style="font-size:.78rem;color:var(--text-tertiary)">College level · 9 cards</div>
+            </div>
+          </div>
+        </div>
+        <button class="btn" onclick="go('tutor')">✨ Study with Ace</button>
+      </section>
+
+      <section class="pane" id="tutor">
+        <div class="lbl">Photosynthesis</div>
+        <div class="hd" style="font-size:1.16rem;margin-bottom:var(--sp-l)">Talking it through</div>
+        <div class="turn ace"><div class="who">Ace</div><div class="bub">I've read it. What are we working on — the whole thing, or one bit that's bugging you?</div></div>
+        <div class="turn me"><div class="who">You</div><div class="bub">i don't get the light reaction part</div></div>
+        <div class="turn ace"><div class="who">Ace</div><div class="bub">Fair — that's the fiddly half. Before I explain: what do you think the light is actually <em>for</em>?</div></div>
+        <div class="turn me"><div class="who">You</div><div class="bub">to make sugar?</div></div>
+        <div class="turn ace"><div class="who">Ace</div><div class="bub">Close, and that's the end of the story rather than this bit. Read it once — which word in it would you want defined?</div></div>
+        <div class="orb"></div>
+        <div style="text-align:center;font-size:.74rem;color:var(--text-tertiary);margin-top:var(--sp-s)">Listening — tap to interrupt</div>
+      </section>
+
+      <section class="pane" id="quiz">
+        <div class="lbl">Question 3 of 8</div>
+        <div class="hd" style="font-size:1.16rem;line-height:1.34;margin-bottom:var(--sp-l)">Where in the cell does photosynthesis happen?</div>
+        <button class="opt" onclick="mark(this,true)">In the chloroplast</button>
+        <button class="opt" onclick="mark(this,false)">In the mitochondria</button>
+        <button class="opt" onclick="mark(this,false)">In the nucleus</button>
+        <button class="opt" onclick="mark(this,false)">In the cell wall</button>
+        <div class="card" id="qfb" style="display:none;margin-top:var(--sp-l)">
+          <div style="font-size:.9rem;line-height:1.55" id="qfbt"></div>
+        </div>
+      </section>
+
+      <section class="pane" id="double">
+        <div class="lbl">Body double</div>
+        <div class="hd" style="font-size:1.16rem">25 minutes on chapter 4</div>
+        <div class="timer">12:41</div>
+        <div style="text-align:center;font-size:.78rem;color:var(--text-tertiary)">Halfway — 12 minutes down.</div>
+        <div class="bar"><i></i></div>
+        <div class="card" style="margin-top:var(--sp-l)">
+          <div style="font-size:.9rem;line-height:1.55">Twenty minutes in. Still with you.</div>
+        </div>
+        <div style="display:flex;gap:var(--sp-s);flex-wrap:wrap;margin:var(--sp-l) 0">
+          <span class="chip on">🎧 Rain</span><span class="chip">🌙 Do not disturb</span>
+        </div>
+        <button class="btn secondary" onclick="go('levelup')">End session</button>
+      </section>
+
+      <section class="pane" id="levelup">
+        <div class="levelup">
+          <div class="bigring"><div><div class="n">8</div><div class="t">LEVEL</div></div></div>
+          <div class="hd" style="font-size:1.3rem">Nice. Back to it whenever you're ready.</div>
+          <p style="font-size:.88rem;margin:var(--sp-s) auto var(--sp-xl);max-width:26ch">
+            You're getting quicker at this.</p>
+          <button class="btn" onclick="go('home')">Keep going</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true"  onclick="go('home',this)">Home</button>
+      <button class="tab" role="tab" aria-selected="false" onclick="go('tutor',this)">Tutor</button>
+      <button class="tab" role="tab" aria-selected="false" onclick="go('quiz',this)">Quiz</button>
+      <button class="tab" role="tab" aria-selected="false" onclick="go('double',this)">Body double</button>
+      <button class="tab" role="tab" aria-selected="false" onclick="go('levelup',this)">Level up</button>
+    </div>
+
+    <h2 style="margin-top:0">What it does</h2>
+    <ul>
+      <li><b>Reads your notes.</b> Photograph a page, a slide, a worksheet. Vision pulls the text out and Ace cleans it up.</li>
+      <li><b>Asks before it tells.</b> The tutor is Socratic by default — it wants your answer first, and only explains after you've had a go.</li>
+      <li><b>Matches how you sound.</b> Pace and warmth ease toward how you seem to be doing. It mirrors; it never imitates you.</li>
+      <li><b>Sits with you.</b> A body-double mode with a goal, ambient sound, and the occasional quiet check-in.</li>
+      <li><b>Works with no key at all.</b> Demo Mode runs entirely on-device and is the floor everything falls back to — no key, no network, a dropped socket all land in an app that still works.</li>
+      <li><b>Knows when to stop being a game.</b> Say you're exhausted and the XP goes quiet. Say something that matters more and the whole game layer gets out of the way.</li>
+    </ul>
+
+    <h2>Verification</h2>
+    <p>Ace was built on a machine with <b>no Xcode</b> — no simulator, no iOS SDK, no XCTest. That constraint shaped the whole project. Everything below runs from the command line.</p>
+    <div class="grid">
+      <div class="stat"><div class="n">3,139</div><div class="k">assertions, no XCTest</div></div>
+      <div class="stat"><div class="n">156</div><div class="k">against a real in-memory store</div></div>
+      <div class="stat"><div class="n">5</div><div class="k">gates in <code>Tools/verify.sh</code></div></div>
+    </div>
+    <p style="margin-top:var(--sp-l)">Each layer was checked adversarially — a bug was put back in to confirm the test catches it. A check that only ever passes is worth nothing.</p>
+  </div>
+</div>
+
+<h2>The palette</h2>
+<p>Dark-only, by decision rather than default. Every value below is the exact constant the app renders, and every one is covered by a WCAG contrast check that runs in CI — because on a machine with no simulator, “is this readable” has to be a number rather than an opinion.</p>
+<div class="swatches" id="swatches"></div>
+
+<h2>What the contrast checks caught</h2>
+<p>The numbers found four real faults in a palette that looked fine as a list of hex codes:</p>
+<div class="scroller">
+<table>
+  <thead><tr><th>Pair</th><th>Was</th><th>Needed</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td><b>Button label on its gradient's bottom</b></td><td>2.97:1</td><td>4.5:1</td><td>Ramp stops short of <code>accentDeep</code></td></tr>
+    <tr><td><b>Accent text on a card</b></td><td>4.44:1</td><td>4.5:1</td><td>Accent lifted to <code>#9165FF</code></td></tr>
+    <tr><td><b>Tertiary text on a pressed surface</b></td><td>4.23:1</td><td>4.5:1</td><td>Tertiary lifted to <code>#9292AB</code></td></tr>
+    <tr><td><b><code>accentDeep</code> in gradient-painted text</b></td><td>2.97:1</td><td>3.0:1</td><td>Replaced with magenta stop</td></tr>
+  </tbody>
+</table>
+</div>
+<p style="margin-top:var(--sp-m)">Checking one representative stop per gradient would have missed the first and the last.</p>
+
+<div class="cta">
+  <a class="primary" href="https://github.com/jasraajdevz/ace">Source on GitHub →</a>
+  <a class="ghost" href="https://github.com/jasraajdevz/ace/blob/main/DECISIONS.md">Every decision, and why</a>
+  <a class="ghost" href="https://github.com/jasraajdevz/ace/blob/main/README.md">How to run it</a>
+</div>
+
+<footer>
+  Built with Claude Code. A preview of a native iOS app — the colours, spacing, type and copy come
+  from the source in this repo; the app itself needs Xcode to run.
+</footer>
+</div>
+
+<script>
+function go(id, el){
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === id));
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', 'false'));
+  const tab = el || [...document.querySelectorAll('.tab')]
+    .find(t => t.getAttribute('onclick').includes("'" + id + "'"));
+  if (tab) tab.setAttribute('aria-selected', 'true');
+}
+function mark(btn, correct){
+  const opts = btn.parentElement.querySelectorAll('.opt');
+  opts.forEach(o => o.disabled = true);
+  btn.classList.add(correct ? 'right' : 'wrong');
+  if (!correct) [...opts].find(o => o.textContent.includes('chloroplast')).classList.add('right');
+  const fb = document.getElementById('qfb');
+  document.getElementById('qfbt').textContent = correct
+    ? "That's it. The chloroplast is where the light gets caught — what do you reckon it does with it?"
+    : "Not quite that one. Mitochondria burn sugar; this is the half that makes it. Want to try again?";
+  fb.style.display = 'block';
+}
+
+/* Contrast ratios computed live, with the same WCAG maths the Swift checks use.
+   Nothing here is a hard-coded number — if a token changes, the page follows. */
+const TOKENS = [
+  ['background','#05050B'],['surfaceSunken','#0B0B14'],['surface','#13131E'],
+  ['surfaceRaised','#1E1E2D'],['surfaceActive','#29293C'],
+  ['textPrimary','#F7F7FC'],['textSecondary','#B6B6CD'],['textTertiary','#9292AB'],
+  ['accent','#9165FF'],['accentAlt','#3DDCFF'],['accentMagenta','#C85CFF'],
+  ['accentDeep','#5B3BD9'],['success','#3DDC97'],['warning','#FFC53D'],
+  ['danger','#FF7A8F'],['flame','#FF9752'],['care','#F0B27A'],['calm','#9BB0C6']
+];
+const lum = hex => {
+  const v = i => { const c = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  return 0.2126 * v(0) + 0.7152 * v(1) + 0.0722 * v(2);
+};
+const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)];
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+
+document.getElementById('swatches').innerHTML = TOKENS.map(([name, hex]) => {
+  const r = ratio(hex, '#05050B');
+  const onGround = name.startsWith('background') || name.startsWith('surface');
+  return `<div class="sw">
+    <div class="chipc" style="background:${hex}"></div>
+    <div class="meta">
+      <div class="nm">${name}${onGround ? '' : `<span class="ratio">${r.toFixed(1)}:1</span>`}</div>
+      <div class="hex">${hex}</div>
+    </div></div>`;
+}).join('');
+</script>
+</body>
+</html>
