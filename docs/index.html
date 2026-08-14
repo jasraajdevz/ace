@@ -179,6 +179,34 @@ h1{
 .bigring .n{font-size:2.5rem;font-weight:900;letter-spacing:-1.5px;line-height:1}
 .bigring .t{font-size:.6rem;font-weight:700;letter-spacing:.16em;color:var(--text-tertiary)}
 
+/* ---- onboarding, settings, flashcards, care ---- */
+.obar{height:6px;border-radius:var(--r-pill);background:var(--surface-sunken);overflow:hidden}
+.obar i{display:block;height:100%;border-radius:inherit;background:var(--brand)}
+.field{width:100%;padding:var(--sp-m) var(--sp-l);border-radius:var(--r-md);
+  background:var(--surface-sunken);border:1px solid var(--stroke);color:var(--text-primary);
+  font-family:inherit;font-size:1rem}
+.field:focus{outline:none;border-color:var(--accent)}
+.wrapchips{display:flex;flex-wrap:wrap;gap:var(--sp-s)}
+.wrapchips .chip{cursor:pointer}
+.vrow{display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.vrow.on{border-color:transparent;box-shadow:0 0 0 1px var(--accent),0 5px 14px rgba(0,0,0,.44)}
+.play{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none;
+  background:rgba(145,101,255,.2);color:var(--accent);font-size:.7rem}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-m);
+  font-size:.92rem;padding:2px 0}
+.srow .val{color:var(--text-tertiary);font-size:.86rem}
+.sep{height:1px;background:var(--stroke);margin:var(--sp-m) 0}
+.inline{background:transparent;border:none;color:var(--text-tertiary);font-family:inherit;
+  font-size:.86rem;text-align:right;width:52%}
+.inline:focus{outline:none;color:var(--text-primary)}
+.sw2{width:38px;height:22px;border-radius:var(--r-pill);background:var(--surface-active);
+  position:relative;flex:none}
+.sw2.on{background:var(--accent)}
+.sw2::after{content:"";position:absolute;top:3px;width:16px;height:16px;border-radius:50%;
+  background:#fff;transition:.18s;left:3px}
+.sw2.on::after{left:19px}
+.card.care{background:linear-gradient(180deg,#1F1814,rgba(31,24,20,.86))}
+
 /* ---- screen switcher ---- */
 .tabs{display:flex;flex-wrap:wrap;gap:var(--sp-s);margin-bottom:var(--sp-l)}
 .tab{padding:9px 15px;border-radius:var(--r-pill);background:var(--surface);
@@ -236,7 +264,8 @@ td{color:var(--text-secondary)}td b{color:var(--text-primary)}
   <p class="lede">A voice-first study companion that <strong>talks you through what you're learning</strong> instead of quizzing you at it. Point it at a photo of your notes and it reads them, asks you questions, and matches how you sound — calmer when you're stressed, quicker when you're flying.</p>
 
   <div class="notice">
-    <b>This page is a preview, not the app.</b> Ace is a native iOS app, so it can't run in a
+    <b>This page is a preview, not the app.</b> Ten screens, including first-open
+    onboarding, settings and the crisis-support surface — Ace is a native iOS app, so it can't run in a
     browser — nothing on a web page can. What you can tap through below is built from Ace's
     <em>actual</em> design tokens and copy, pulled straight from the source in this repo, so the
     colours, spacing, type and words are exactly what the app renders. To run the real thing you
@@ -255,9 +284,11 @@ td{color:var(--text-secondary)}td b{color:var(--text-primary)}
         <div class="card">
           <div class="ringrow">
             <div class="ring"><span>7</span></div>
-            <div>
+            <div style="flex:1;min-width:0">
               <div style="font-weight:700;font-size:1.02rem">Getting the hang of it</div>
-              <div class="streak">🔥 12 days running.</div>
+              <div class="obar" style="margin:7px 0 5px"><i style="width:62%"></i></div>
+              <div style="font-size:.74rem;color:var(--text-tertiary)">1,240 XP · 340 to level 8</div>
+              <div class="streak" style="margin-top:6px">🔥 12 days running.</div>
             </div>
           </div>
         </div>
@@ -332,16 +363,144 @@ td{color:var(--text-secondary)}td b{color:var(--text-primary)}
         </div>
       </section>
 
+
+      <section class="pane" id="onboard">
+        <div class="obar"><i style="width:40%"></i></div>
+        <div class="lbl" style="margin-top:var(--sp-l)">Step 2 of 5</div>
+        <div class="hd">What should Ace call you?</div>
+        <div class="sub">Just a first name is plenty. You can change it later.</div>
+        <input class="field" id="obName" placeholder="Your name" value="Sam" aria-label="Your name">
+        <div class="card" style="margin-top:var(--sp-l)">
+          <div style="font-size:.86rem;line-height:1.55;color:var(--text-secondary)">
+            Ace uses it when it talks to you — nothing leaves your phone.</div>
+        </div>
+        <button class="btn" style="margin-top:var(--sp-l)" onclick="go('onboard2')">Next</button>
+      </section>
+
+      <section class="pane" id="onboard2">
+        <div class="obar"><i style="width:60%"></i></div>
+        <div class="lbl" style="margin-top:var(--sp-l)">Step 3 of 5</div>
+        <div class="hd">What year are you in?</div>
+        <div class="sub">Ace matches its vocabulary and pace to this.</div>
+        <div class="wrapchips">
+          <span class="chip" onclick="pick(this)">Year 7</span>
+          <span class="chip" onclick="pick(this)">Year 8</span>
+          <span class="chip on" onclick="pick(this)">Year 9</span>
+          <span class="chip" onclick="pick(this)">Year 10</span>
+          <span class="chip" onclick="pick(this)">Year 11</span>
+          <span class="chip" onclick="pick(this)">College</span>
+        </div>
+        <div class="card" style="margin-top:var(--sp-l)">
+          <div class="lbl">How Ace will explain things</div>
+          <div style="font-size:.88rem;line-height:1.55">Straight answers with the reasoning
+            shown, and it'll assume you've met the basics.</div>
+        </div>
+        <button class="btn" style="margin-top:var(--sp-l)" onclick="go('onboard3')">Next</button>
+      </section>
+
+      <section class="pane" id="onboard3">
+        <div class="obar"><i style="width:100%"></i></div>
+        <div class="lbl" style="margin-top:var(--sp-l)">Step 5 of 5</div>
+        <div class="hd">Pick a voice</div>
+        <div class="sub">Tap to hear each one. You can change it any time in Settings.</div>
+        <div class="card vrow on" onclick="pickVoice(this)">
+          <div><div style="font-weight:700">Robin</div>
+            <div style="font-size:.78rem;color:var(--text-tertiary)">Warm, unhurried</div></div>
+          <div class="play">▶</div>
+        </div>
+        <div class="card vrow" onclick="pickVoice(this)">
+          <div><div style="font-weight:700">Kit</div>
+            <div style="font-size:.78rem;color:var(--text-tertiary)">Quick, upbeat</div></div>
+          <div class="play">▶</div>
+        </div>
+        <div class="card vrow" onclick="pickVoice(this)">
+          <div><div style="font-weight:700">Sage</div>
+            <div style="font-size:.78rem;color:var(--text-tertiary)">Calm, even</div></div>
+          <div class="play">▶</div>
+        </div>
+        <button class="btn" style="margin-top:var(--sp-l)" onclick="go('home')">Start studying</button>
+      </section>
+
+      <section class="pane" id="settings">
+        <div class="hd">Settings</div>
+        <div class="lbl" style="margin-top:var(--sp-l)">About you</div>
+        <div class="card">
+          <div class="srow"><span>Name</span><input class="inline" value="Sam" aria-label="Name"></div>
+          <div class="sep"></div>
+          <div class="srow"><span>Year</span><span class="val">Year 9 ▾</span></div>
+          <div class="sep"></div>
+          <div class="srow"><span>Subjects</span><span class="val">Biology, Maths ▾</span></div>
+        </div>
+        <div class="lbl">Voice</div>
+        <div class="card">
+          <div class="srow"><span>Robin</span><span class="val">✓</span></div>
+          <div class="sep"></div>
+          <div class="srow"><span>Kit</span><span class="val">▶</span></div>
+          <div class="sep"></div>
+          <div class="srow"><span>Sage</span><span class="val">▶</span></div>
+        </div>
+        <div class="lbl">Sound and feel</div>
+        <div class="card">
+          <div class="srow"><span>Sound effects</span><span class="sw2 on"></span></div>
+          <div class="sep"></div>
+          <div class="srow"><span>Haptics</span><span class="sw2 on"></span></div>
+        </div>
+        <div class="lbl">Getting help</div>
+        <div class="card">
+          <div class="srow"><span>Support region</span><span class="val">United Kingdom ▾</span></div>
+          <div style="font-size:.78rem;color:var(--text-tertiary);margin-top:var(--sp-s)">
+            If things get heavy, Ace will show these.</div>
+        </div>
+        <button class="btn secondary" onclick="go('home')">Done</button>
+      </section>
+
+      <section class="pane" id="cards">
+        <div class="lbl">Photosynthesis · card 4 of 12</div>
+        <div class="obar" style="margin:var(--sp-s) 0 var(--sp-l)"><i style="width:33%"></i></div>
+        <div class="card" style="min-height:170px;display:grid;place-items:center;text-align:center">
+          <div>
+            <div class="lbl">Term</div>
+            <div style="font-size:1.28rem;font-weight:800;letter-spacing:-.5px">Chlorophyll</div>
+            <div style="font-size:.82rem;color:var(--text-tertiary);margin-top:var(--sp-m)">
+              Tap to turn over</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:var(--sp-s);margin-top:var(--sp-l)">
+          <button class="opt" style="margin:0;text-align:center;color:var(--danger)">Forgot</button>
+          <button class="opt" style="margin:0;text-align:center;color:var(--warning)">Hard</button>
+          <button class="opt" style="margin:0;text-align:center;color:var(--success)">Easy</button>
+        </div>
+      </section>
+
+      <section class="pane" id="care">
+        <div style="padding:var(--sp-xl) 0">
+          <div class="hd" style="font-size:1.34rem;line-height:1.3">Sam, that sounded heavy.</div>
+          <p style="font-size:.95rem;line-height:1.62;color:var(--text-secondary);margin:var(--sp-m) 0 var(--sp-xl)">
+            I'm not the right kind of help for this, but people are — and they're
+            there right now.</p>
+          <div class="card care"><div style="font-weight:700">Samaritans</div>
+            <div style="font-size:.82rem;color:var(--text-secondary)">Call 116 123 — free, 24 hours</div></div>
+          <div class="card care"><div style="font-weight:700">Shout</div>
+            <div style="font-size:.82rem;color:var(--text-secondary)">Text SHOUT to 85258</div></div>
+          <button class="btn secondary" style="margin-top:var(--sp-l)" onclick="go('home')">I'm okay</button>
+          <p style="font-size:.76rem;color:var(--text-tertiary);text-align:center;margin-top:var(--sp-m)">
+            Nothing here is scored. No XP, no streak, no quiz.</p>
+        </div>
+      </section>
     </div>
   </div>
 
   <div>
     <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="false" onclick="go('onboard',this)">First open</button>
       <button class="tab" role="tab" aria-selected="true"  onclick="go('home',this)">Home</button>
       <button class="tab" role="tab" aria-selected="false" onclick="go('tutor',this)">Tutor</button>
       <button class="tab" role="tab" aria-selected="false" onclick="go('quiz',this)">Quiz</button>
       <button class="tab" role="tab" aria-selected="false" onclick="go('double',this)">Body double</button>
+      <button class="tab" role="tab" aria-selected="false" onclick="go('cards',this)">Flashcards</button>
       <button class="tab" role="tab" aria-selected="false" onclick="go('levelup',this)">Level up</button>
+      <button class="tab" role="tab" aria-selected="false" onclick="go('settings',this)">Settings</button>
+      <button class="tab" role="tab" aria-selected="false" onclick="go('care',this)">Safety net</button>
     </div>
 
     <h2 style="margin-top:0">What it does</h2>
@@ -403,6 +562,14 @@ function go(id, el){
   const tab = el || [...document.querySelectorAll('.tab')]
     .find(t => t.getAttribute('onclick').includes("'" + id + "'"));
   if (tab) tab.setAttribute('aria-selected', 'true');
+}
+function pick(el){
+  el.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+}
+function pickVoice(el){
+  el.parentElement.querySelectorAll('.vrow').forEach(v => v.classList.remove('on'));
+  el.classList.add('on');
 }
 function mark(btn, correct){
   const opts = btn.parentElement.querySelectorAll('.opt');

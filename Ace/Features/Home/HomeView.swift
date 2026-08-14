@@ -192,6 +192,29 @@ struct HomeView: View {
                         Text(record.levelTitle)
                             .font(Typeface.bodyEmphasis)
                             .foregroundStyle(Ink.textPrimary)
+
+                        // The XP itself, which nothing used to show.
+                        //
+                        // `xpToNextLevel` has been computed on the record since
+                        // the model was written and was displayed on no screen,
+                        // so the ring told the student they were *somewhere*
+                        // through a level without ever saying where. A bar with
+                        // real numbers is the difference between a decoration
+                        // and progress you can actually track.
+                        VStack(alignment: .leading, spacing: Space.xs) {
+                            AceProgressBar(progress: record.levelProgress,
+                                           height: 6, showsGlow: false)
+                            Text(record.xpToNextLevel > 0
+                                 ? "\(record.totalXP) XP · \(record.xpToNextLevel) to level \(record.level + 1)"
+                                 : "\(record.totalXP) XP · top level")
+                                .font(Typeface.caption)
+                                .foregroundStyle(Ink.textTertiary)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(Text(record.xpToNextLevel > 0
+                            ? "\(record.totalXP) experience points, \(record.xpToNextLevel) to level \(record.level + 1)"
+                            : "\(record.totalXP) experience points, top level reached"))
+
                         Text(streakStatus.nudge)
                             .font(Typeface.footnote)
                             .foregroundStyle(Ink.textSecondary)
