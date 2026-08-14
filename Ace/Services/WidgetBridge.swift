@@ -30,16 +30,14 @@ enum WidgetBridge {
                         sourceCount: Int,
                         now: Date = Date()) {
 
-        let status = StreakEngine.status(streak, now: now)
-
         let snapshot = WidgetSnapshot(
             level: level,
             levelTitle: levelTitle,
             levelProgress: levelProgress,
             totalXP: totalXP,
             streakDays: streak.current,
-            streakStateRaw: displayState(for: status).rawValue,
-            nudge: nudge(for: status, sourceCount: sourceCount, lastTitle: lastSourceTitle),
+            lastStudyDay: streak.lastStudyDay,
+            repairsAvailable: streak.repairsAvailable,
             lastSourceTitle: lastSourceTitle,
             sourceCount: sourceCount,
             lastUpdated: now
@@ -64,40 +62,7 @@ enum WidgetBridge {
 
     // MARK: - Copy
 
-    private static func displayState(for status: StreakStatus) -> StreakDisplayState {
-        switch status {
-        case .none: .none
-        case .safeToday: .safeToday
-        case .atRisk: .atRisk
-        case .repairable: .repairable
-        case .broken: .broken
-        }
-    }
-
-    /// The one line on the widget.
-    ///
-    /// Every branch is an invitation. None of them is a countdown, a warning, or
-    /// a reminder of what the student stands to lose — a home-screen widget that
-    /// makes you feel bad every time you unlock your phone is a widget that gets
-    /// deleted, and deserves to be (§10).
-    static func nudge(for status: StreakStatus, sourceCount: Int, lastTitle: String) -> String {
-        if sourceCount == 0 {
-            return "Point Ace at something you're studying."
-        }
-
-        let subject = lastTitle.isEmpty ? "where you left off" : lastTitle
-
-        switch status {
-        case .none:
-            return "Ready when you are."
-        case .safeToday(let days):
-            return days <= 1 ? "Day one down." : "\(days) days running."
-        case .atRisk(let days):
-            return days <= 1 ? "Pick up \(subject)?" : "\(days) days going — one session keeps it."
-        case .repairable(let days):
-            return "Your \(days)-day streak is still savable."
-        case .broken:
-            return "Fresh start whenever — \(subject) is waiting."
-        }
-    }
+    // The streak's display state and the widget's copy both live in `Shared`
+    // now — see `StreakClock` and `WidgetCopy`. They used to be computed here,
+    // frozen into the snapshot, and then read hours or days later.
 }

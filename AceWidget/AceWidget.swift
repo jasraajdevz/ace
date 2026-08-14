@@ -35,12 +35,29 @@ struct AceProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<AceEntry>) -> Void) {
-        let entry = AceEntry(date: Date(), snapshot: WidgetStore.read())
+        let snapshot = WidgetStore.read()
+        let now = Date()
+        let calendar = Calendar.current
 
-        // One hour. Frequent enough that a day boundary is picked up promptly,
-        // sparse enough that iOS never starts throttling our refresh budget.
-        let nextRefresh = Calendar.current.date(byAdding: .hour, value: 1, to: Date()) ?? Date()
-        completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
+        // Two entries: now, and the moment the day turns over.
+        //
+        // The streak's state is a function of the date, so it changes at
+        // midnight whether or not the app has been opened. Scheduling the
+        // boundary explicitly makes that transition exact instead of up to an
+        // hour late — and the views recompute from the entry's date, so the
+        // midnight entry renders the new day rather than a cached answer.
+        var entries = [AceEntry(date: now, snapshot: snapshot)]
+        let midnight = calendar.nextDate(after: now,
+                                         matching: DateComponents(hour: 0, minute: 0),
+                                         matchingPolicy: .nextTime)
+        if let midnight {
+            entries.append(AceEntry(date: midnight, snapshot: snapshot))
+        }
+
+        // Then keep the hourly cadence, so a snapshot written while the widget
+        // was asleep still surfaces without waiting for the next day.
+        let nextRefresh = midnight ?? calendar.date(byAdding: .hour, value: 1, to: now) ?? now
+        completion(Timeline(entries: entries, policy: .after(nextRefresh)))
     }
 }
 
@@ -52,9 +69,9 @@ struct AceWidgetEntryView: View {
         Group {
             switch family {
             case .systemMedium:
-                AceMediumWidgetView(snapshot: entry.snapshot)
+                AceMediumWidgetView(snapshot: entry.snapshot, now: entry.date)
             default:
-                AceSmallWidgetView(snapshot: entry.snapshot)
+                AceSmallWidgetView(snapshot: entry.snapshot, now: entry.date)
             }
         }
         // `containerBackground` is required from iOS 17 — a widget without one

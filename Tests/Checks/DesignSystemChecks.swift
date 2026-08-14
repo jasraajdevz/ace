@@ -258,3 +258,97 @@ enum ContrastChecks {
 
     private static func luminanceOf(_ hex: UInt32) -> Double { luminance(hex) }
 }
+
+// MARK: - The widget across a day boundary
+
+/// The widget has to age correctly.
+///
+/// It used to be handed a conclusion — `streakStateRaw` and a nudge line, both
+/// computed by the app at publish time — and then render them for as long as
+/// nobody opened the app. "Is this streak safe" is a question whose answer
+/// changes at midnight, so by breakfast the home screen could be showing a lit
+/// flame and "12 days running" for a streak that was already at risk.
+///
+/// The hourly refresh did not help: it re-read the same frozen string. Its own
+/// comment said it existed so "a day boundary is picked up promptly".
+enum WidgetAgingChecks {
+    static let all = CheckSuite(name: "Widget across a day boundary") { run in
+
+        let calendar = Calendar(identifier: .gregorian)
+        let noonToday = Date(timeIntervalSince1970: 1_770_000_000)
+        func day(_ offset: Int) -> Date {
+            calendar.date(byAdding: .day, value: offset, to: noonToday) ?? noonToday
+        }
+
+        // Published today, read today.
+        var snapshot = WidgetSnapshot.empty
+        snapshot.streakDays = 12
+        snapshot.sourceCount = 3
+        snapshot.lastSourceTitle = "Photosynthesis"
+        snapshot.lastStudyDay = noonToday
+        snapshot.repairsAvailable = 1
+
+        run.expectEqual(snapshot.streakState(at: noonToday, calendar: calendar), .safeToday,
+                        "studied today reads as safe")
+        run.expectEqual(snapshot.nudge(at: noonToday, calendar: calendar), "12 days running.",
+                        "and the copy matches")
+
+        // The same snapshot, one day later. Nothing republished — the student
+        // simply hasn't opened the app.
+        run.expectEqual(snapshot.streakState(at: day(1), calendar: calendar), .atRisk,
+                        "the next day, the same snapshot must read as at risk")
+        run.expectEqual(snapshot.nudge(at: day(1), calendar: calendar),
+                        "12 days going — one session keeps it.",
+                        "and the copy must follow the state, not stay frozen with it")
+
+        // Two days: savable, because a repair is in hand.
+        run.expectEqual(snapshot.streakState(at: day(2), calendar: calendar), .repairable,
+                        "two days out with a repair available is savable")
+        run.expect(snapshot.nudge(at: day(2), calendar: calendar).contains("savable"),
+                   "and says so")
+
+        // Two days with no repair left is simply broken.
+        var noRepair = snapshot
+        noRepair.repairsAvailable = 0
+        run.expectEqual(noRepair.streakState(at: day(2), calendar: calendar), .broken,
+                        "no repair left means two days out is broken")
+
+        run.expectEqual(snapshot.streakState(at: day(5), calendar: calendar), .broken,
+                        "five days out is broken regardless")
+        run.expect(snapshot.nudge(at: day(5), calendar: calendar).contains("Fresh start"),
+                   "and the copy invites rather than scolds")
+
+        // A student with nothing captured is never nagged about a streak.
+        var empty = WidgetSnapshot.empty
+        empty.sourceCount = 0
+        run.expectEqual(empty.nudge(at: noonToday, calendar: calendar),
+                        "Point Ace at something you're studying.",
+                        "an empty install gets a starting point, not a streak line")
+
+        // No study day at all — no streak to be at risk of losing.
+        run.expectEqual(WidgetSnapshot.empty.streakState(at: day(30), calendar: calendar), .none,
+                        "a student who has never studied has no streak state to age")
+
+        // The snapshot survives a round trip through the store's encoding, since
+        // that is how the widget actually receives it.
+        if let data = try? JSONEncoder().encode(snapshot),
+           let decoded = try? JSONDecoder().decode(WidgetSnapshot.self, from: data) {
+            run.expectEqual(decoded.streakState(at: day(1), calendar: calendar), .atRisk,
+                            "the ingredients survive encoding — a stored conclusion would not")
+            run.expectEqual(decoded.lastStudyDay, snapshot.lastStudyDay, "last study day round-trips")
+        } else {
+            run.expect(false, "the snapshot must encode and decode")
+        }
+
+        // Ordering: every state the app can publish is one the widget can render.
+        for state in [StreakDisplayState.none, .safeToday, .atRisk, .repairable, .broken] {
+            let line = WidgetCopy.nudge(state: state, days: 4, sourceCount: 2, lastTitle: "Cells")
+            run.expect(!line.isEmpty, "\(state) must have a line")
+            // §10: never a countdown, never a warning.
+            for word in ["don't", "lose", "losing", "fail", "warning", "last chance"] {
+                run.expect(!line.lowercased().contains(word),
+                           "widget copy for \(state) must not pressure: “\(line)”")
+            }
+        }
+    }
+}

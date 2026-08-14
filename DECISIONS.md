@@ -916,3 +916,28 @@ from both text-bearing gradients *and* that it still fails the graphic floor, so
 if someone lightens it the comment explaining the exclusion gets flagged as
 stale rather than quietly becoming wrong.
 
+## D60 — The widget stores ingredients, not conclusions
+
+`WidgetBridge` computed the streak's display state and its one line of copy at
+publish time and froze both into the snapshot. The widget then rendered them for
+as long as nobody opened the app.
+
+"Is this streak safe" is a question whose answer changes at midnight, so by
+breakfast the home screen could show a lit flame and "12 days running" for a
+streak that had already slipped to at-risk. The hourly refresh did not help — it
+re-read the same frozen string. Its own comment said it was there so "a day
+boundary is picked up promptly".
+
+The snapshot now carries `lastStudyDay` and `repairsAvailable`, and the state is
+computed at render time by `StreakClock` in `Shared` — one implementation, used
+by both targets, so they cannot disagree about what day it is.
+
+The copy moved with it. Recomputing the flame while leaving the line frozen
+would have produced a widget that contradicted itself, which is worse than one
+that is merely stale.
+
+The timeline now schedules an entry exactly at midnight rather than relying on
+the hourly cadence to notice, and the views take the entry's date rather than
+asking the clock — an entry built in advance and rendered later would otherwise
+compute the wrong day.
+

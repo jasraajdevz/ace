@@ -62,6 +62,10 @@ enum WidgetInk {
 /// from arm's length, so it carries three facts and no more.
 struct AceSmallWidgetView: View {
     let snapshot: WidgetSnapshot
+    /// The date this entry represents, not "now". A timeline entry scheduled for
+    /// midnight is built in advance and rendered then, so asking the clock would
+    /// give the wrong day.
+    var now: Date = Date()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -91,13 +95,13 @@ struct AceSmallWidgetView: View {
                             .font(.system(size: 14, design: .rounded).weight(.heavy))
                             .monospacedDigit()
                     }
-                    .foregroundStyle(WidgetInk.streakTint(snapshot.streakState))
+                    .foregroundStyle(WidgetInk.streakTint(snapshot.streakState(at: now)))
                 }
             }
 
             Spacer(minLength: 6)
 
-            Text(snapshot.nudge)
+            Text(snapshot.nudge(at: now))
                 .font(.system(size: 13, design: .rounded).weight(.semibold))
                 .foregroundStyle(WidgetInk.textPrimary)
                 .lineLimit(3)
@@ -106,7 +110,7 @@ struct AceSmallWidgetView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(accessibilitySummary(snapshot)))
+        .accessibilityLabel(Text(accessibilitySummary(snapshot, now: now)))
     }
 }
 
@@ -115,6 +119,7 @@ struct AceSmallWidgetView: View {
 /// Adds what they were last working on, and the XP total.
 struct AceMediumWidgetView: View {
     let snapshot: WidgetSnapshot
+    var now: Date = Date()
 
     var body: some View {
         HStack(spacing: 16) {
@@ -159,7 +164,7 @@ struct AceMediumWidgetView: View {
                             Image(systemName: "flame.fill")
                                 .font(.system(size: 12, weight: .bold))
                         }
-                        .foregroundStyle(WidgetInk.streakTint(snapshot.streakState))
+                        .foregroundStyle(WidgetInk.streakTint(snapshot.streakState(at: now)))
                     }
 
                     Label {
@@ -175,7 +180,7 @@ struct AceMediumWidgetView: View {
                     Spacer(minLength: 0)
                 }
 
-                Text(snapshot.nudge)
+                Text(snapshot.nudge(at: now))
                     .font(.system(size: 15, design: .rounded).weight(.semibold))
                     .foregroundStyle(WidgetInk.textPrimary)
                     .lineLimit(2)
@@ -201,7 +206,7 @@ struct AceMediumWidgetView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(accessibilitySummary(snapshot)))
+        .accessibilityLabel(Text(accessibilitySummary(snapshot, now: now)))
     }
 }
 
@@ -209,11 +214,11 @@ struct AceMediumWidgetView: View {
 
 /// One spoken sentence covering the whole widget, so VoiceOver doesn't read it
 /// as a pile of disconnected numbers.
-func accessibilitySummary(_ snapshot: WidgetSnapshot) -> String {
+func accessibilitySummary(_ snapshot: WidgetSnapshot, now: Date = Date()) -> String {
     var parts: [String] = ["Ace. Level \(snapshot.level), \(snapshot.levelTitle)."]
     if snapshot.streakDays > 0 {
         parts.append("\(snapshot.streakDays) day streak.")
     }
-    parts.append(snapshot.nudge)
+    parts.append(snapshot.nudge(at: now))
     return parts.joined(separator: " ")
 }

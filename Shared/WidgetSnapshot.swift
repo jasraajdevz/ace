@@ -23,10 +23,15 @@ struct WidgetSnapshot: Codable, Equatable, Sendable {
     var levelProgress: Double
     var totalXP: Int
     var streakDays: Int
-    /// Whether the streak is safe, at risk, or savable today.
-    var streakStateRaw: String
-    /// One warm line. Written by the app so all the tone rules live in one place.
-    var nudge: String
+    /// The day the streak was last extended, and whether a repair is in hand.
+    ///
+    /// The *ingredients* rather than the conclusion. A stored
+    /// `streakStateRaw` was written by the app at publish time and then frozen,
+    /// so the widget rendered yesterday's answer to a question whose answer
+    /// changes at midnight — and refreshing hourly just re-rendered the same
+    /// stale string.
+    var lastStudyDay: Date?
+    var repairsAvailable: Int
     /// Title of the last thing they studied, for the medium widget.
     var lastSourceTitle: String
     var sourceCount: Int
@@ -42,8 +47,8 @@ struct WidgetSnapshot: Codable, Equatable, Sendable {
         levelProgress: 0,
         totalXP: 0,
         streakDays: 0,
-        streakStateRaw: StreakDisplayState.none.rawValue,
-        nudge: "Point Ace at something you're studying.",
+        lastStudyDay: nil,
+        repairsAvailable: 1,
         lastSourceTitle: "",
         sourceCount: 0,
         lastUpdated: .distantPast
@@ -57,15 +62,26 @@ struct WidgetSnapshot: Codable, Equatable, Sendable {
         levelProgress: 0.62,
         totalXP: 1_240,
         streakDays: 12,
-        streakStateRaw: StreakDisplayState.safeToday.rawValue,
-        nudge: "12 days running.",
+        lastStudyDay: Date(timeIntervalSince1970: 1_760_000_000),
+        repairsAvailable: 1,
         lastSourceTitle: "Photosynthesis",
         sourceCount: 4,
         lastUpdated: Date(timeIntervalSince1970: 1_786_000_000)
     )
 
-    var streakState: StreakDisplayState {
-        StreakDisplayState(rawValue: streakStateRaw) ?? .none
+    /// The streak state *as of now*, not as of the last publish.
+    func streakState(at now: Date = Date(), calendar: Calendar = .current) -> StreakDisplayState {
+        StreakClock.state(lastStudyDay: lastStudyDay,
+                          repairsAvailable: repairsAvailable,
+                          now: now, calendar: calendar)
+    }
+
+    /// The one line on the widget, written for the day it is being read on.
+    func nudge(at now: Date = Date(), calendar: Calendar = .current) -> String {
+        WidgetCopy.nudge(state: streakState(at: now, calendar: calendar),
+                         days: streakDays,
+                         sourceCount: sourceCount,
+                         lastTitle: lastSourceTitle)
     }
 
     /// True when there's nothing real to show yet.
@@ -74,6 +90,57 @@ struct WidgetSnapshot: Codable, Equatable, Sendable {
 
 /// The widget's view of the streak. A flattened `StreakStatus` — the widget
 /// doesn't need the associated values, only the colour and icon to use.
+/// Where a streak stands, given a date.
+///
+/// Lives in `Shared` so the app and the widget cannot disagree about it. The
+/// app used to own this arithmetic and hand the widget a conclusion; the
+/// conclusion then aged badly, because "is the streak safe" is a question whose
+/// answer changes at midnight whether or not anybody republished.
+enum StreakClock {
+    static func state(lastStudyDay: Date?,
+                      repairsAvailable: Int,
+                      now: Date = Date(),
+                      calendar: Calendar = .current) -> StreakDisplayState {
+        guard let last = lastStudyDay.map({ calendar.startOfDay(for: $0) }) else { return .none }
+        let today = calendar.startOfDay(for: now)
+        switch calendar.dateComponents([.day], from: last, to: today).day ?? 0 {
+        case ..<0, 0: return .safeToday
+        case 1: return .atRisk
+        case 2 where repairsAvailable > 0: return .repairable
+        default: return .broken
+        }
+    }
+}
+
+/// The widget's words.
+///
+/// Also shared, and for the same reason: the copy is chosen by streak state, so
+/// leaving it in the app would have left the flame recomputing at midnight while
+/// the line under it still said "12 days running". Disagreeing with itself is
+/// worse than being stale.
+///
+/// Every branch is an invitation. None is a countdown, a warning, or a reminder
+/// of what the student stands to lose — a home-screen widget that makes you feel
+/// bad every time you unlock your phone is one that gets deleted, and deserves
+/// to be (§10).
+enum WidgetCopy {
+    static func nudge(state: StreakDisplayState,
+                      days: Int,
+                      sourceCount: Int,
+                      lastTitle: String) -> String {
+        if sourceCount == 0 { return "Point Ace at something you're studying." }
+        let subject = lastTitle.isEmpty ? "where you left off" : lastTitle
+        switch state {
+        case .none: return "Ready when you are."
+        case .safeToday: return days <= 1 ? "Day one down." : "\(days) days running."
+        case .atRisk:
+            return days <= 1 ? "Pick up \(subject)?" : "\(days) days going — one session keeps it."
+        case .repairable: return "Your \(days)-day streak is still savable."
+        case .broken: return "Fresh start whenever — \(subject) is waiting."
+        }
+    }
+}
+
 enum StreakDisplayState: String, Codable, Sendable {
     case none
     case safeToday

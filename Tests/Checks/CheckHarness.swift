@@ -145,6 +145,7 @@ enum AllChecks {
             DemoDeckChecks.all,
             DesignSystemChecks.all,
             ContrastChecks.all,
+            WidgetAgingChecks.all,
             ServiceChecks.comfortMute,
             ServiceChecks.providerSwitching,
             ServiceChecks.moodEasing,
