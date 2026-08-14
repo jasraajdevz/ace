@@ -915,6 +915,15 @@ enum IdleChecks {
                        "the Guardian should check in on a student who has gone quiet")
             run.expect(r.leftAloneWhileWorking,
                        "a student who is working must not be interrupted")
+
+            // Leaving the app entirely. The watcher used to sit on one screen,
+            // so this only worked while the Body Double view was on top.
+            run.expectEqual(r.appExitsAfterLongAbsence, 1,
+                            "coming back after two minutes counts as having left")
+            run.expect(r.welcomedBack, "and Ace should say something about it")
+            run.expectEqual(r.appExitsAfterGlance, 0,
+                            "a five-second glance at a banner is not leaving")
+            run.expect(!r.welcomedAfterGlance, "and must not be greeted")
             run.expectEqual(r.idleWhileFinished, 0,
                             "a finished session doesn't accumulate idle time")
             run.expect(r.idleAfterResumeIsZero,
@@ -937,6 +946,10 @@ private enum IdleProbe {
         var idleWhileFinished: TimeInterval = -1
         var idleAfterResumeIsZero = false
         var leftAloneWhileWorking = false
+        var appExitsAfterLongAbsence = -1
+        var welcomedBack = false
+        var appExitsAfterGlance = -1
+        var welcomedAfterGlance = true
     }
 
     static func run() async -> Result {
@@ -978,6 +991,24 @@ private enum IdleProbe {
         presence.resumeSession()
         presence.refreshIdle(now: Date())
         out.idleAfterResumeIsZero = appState.signals.idleSeconds < 1
+
+        // Away for two minutes, then back.
+        let away = PresenceCoordinator()
+        let awayState = AppState()
+        away.begin(goal: goal, appState: awayState)
+        away.handleLeaveForeground(now: t0)
+        away.handleReturnToForeground(now: t0.addingTimeInterval(120))
+        out.appExitsAfterLongAbsence = awayState.signals.appExits
+        out.welcomedBack = away.activeNudge != nil
+
+        // A notification banner is not leaving.
+        let glance = PresenceCoordinator()
+        let glanceState = AppState()
+        glance.begin(goal: goal, appState: glanceState)
+        glance.handleLeaveForeground(now: t0)
+        glance.handleReturnToForeground(now: t0.addingTimeInterval(5))
+        out.appExitsAfterGlance = glanceState.signals.appExits
+        out.welcomedAfterGlance = glance.activeNudge != nil
 
         // A closed session stops counting.
         presence.finishSession()

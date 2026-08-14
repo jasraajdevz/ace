@@ -124,6 +124,7 @@ enum AllChecks {
             VoiceMatchingChecks.all,
             KeyChecks.all,
             RealtimeIntegrationChecks.connection,
+            RealtimeIntegrationChecks.states,
             RealtimeIntegrationChecks.conversation,
             RealtimeIntegrationChecks.bargeIn,
             RealtimeIntegrationChecks.resilience,

@@ -86,6 +86,40 @@ enum RealtimeIntegrationChecks {
 
     // MARK: - The conversation
 
+    // MARK: - The state machine
+
+    /// `TransportState.connecting` existed and was assigned by nothing, so the
+    /// machine went straight from idle to connected. Nothing could tell "not
+    /// started" from "waiting on the socket" — which is the window the student
+    /// actually spends time in, and the one where treating a half-open socket
+    /// as ready would send events into nowhere.
+    static let states = CheckSuite(name: "Live Mode — connection states") { run in
+        run.expect(!TransportState.idle.isConnected, "idle is not connected")
+        run.expect(!TransportState.connecting.isConnected,
+                   "a half-open socket must never count as ready")
+        run.expect(TransportState.connected(sessionID: "s").isConnected,
+                   "a completed handshake is connected")
+        run.expect(!TransportState.closed.isConnected, "closed is not connected")
+        run.expect(!TransportState.failed("nope").isConnected, "failed is not connected")
+
+        // And the provider actually passes through it.
+        let observed = runAsync(timeout: 6) { () -> Bool in
+            let mock = MockRealtimeTransport(script: .healthy)
+            let provider = OpenAIRealtimeProvider(apiKey: "sk-test", transport: mock)
+            async let connect: Bool = provider.prewarm(config: makeConfig())
+            var sawConnecting = false
+            for _ in 0..<200 {
+                if case .connecting = provider.transportState { sawConnecting = true; break }
+                try? await Task.sleep(for: .milliseconds(1))
+            }
+            _ = await connect
+            await provider.disconnect()
+            return sawConnecting
+        }
+        run.expect(observed == true,
+                   "the provider should report `connecting` during the handshake")
+    }
+
     static let conversation = CheckSuite(name: "Live Mode — conversation and latency") { run in
 
         // --- A full turn ---------------------------------------------------------

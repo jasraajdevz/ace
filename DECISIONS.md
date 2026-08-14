@@ -818,3 +818,39 @@ definitions of "is this student struggling" is a drift hazard where one of them
 is the one that ships. The eight assertions were retargeted at `Guardian` rather
 than deleted, so the intent survives against the code that runs.
 
+## D55 — Leaving the app is watched app-wide
+
+`.presenceLifecycle(presence)` sat on `BodyDoubleView`, so iOS telling us the
+student had left was only heard while that one screen was on top. From the quiz
+or the tutor, slipping off to another app recorded nothing: `appExits` never
+incremented, the welcome-back nudge never fired, and the mood heuristic keyed on
+app exits could not fire either.
+
+The modifier's own doc comment describes the feature it was failing to deliver —
+"this is what makes 'you slipped off to a YouTube short' work".
+
+This is D51's failure a second time in a different costume, which is why the QA
+sweep now guards both: presence must be *owned* by the app, and the lifecycle
+watcher must be *applied* by the app. Neither mistake is visible from the screen
+that makes it — everything compiles and that screen behaves perfectly.
+
+`handleReturnToForeground` and `handleLeaveForeground` now take `now:`, for the
+same reason `tickOnce` does: a check that has to wait out two real minutes is a
+check that gets deleted.
+
+## D56 — TransportState.connecting is assigned, AIProviderError.cancelled is gone
+
+Two enum cases nothing ever constructed, resolved in opposite directions.
+
+`.connecting` was worth having and missing: without it the socket went straight
+from idle to connected, so nothing could tell "never started" from "waiting on
+the handshake" — the window the student actually spends time in, and the one
+where treating a half-open socket as ready sends events nowhere. The provider
+now marks it, exposes `transportState`, and a check drives a real handshake to
+confirm it passes through.
+
+`.cancelled` was not: it carried full student-facing copy for an error that is
+never thrown. Cancellation ends the stream quietly, which is the right response
+to a student who interrupted on purpose — an error card would be wrong. Deleted
+rather than wired up.
+

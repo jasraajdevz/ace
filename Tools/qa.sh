@@ -272,6 +272,16 @@ else
     fail "PresenceCoordinator is constructed outside AceApp: $OWNERS"
 fi
 
+# Same reasoning, same failure mode: `.presenceLifecycle` used to sit on
+# BodyDoubleView, so leaving the app was only noticed while that screen was up.
+WATCHERS=$(grep -rln "\.presenceLifecycle(" Ace --include='*.swift' \
+           | grep -v "Ace/Services/PresenceCoordinator.swift" || true)
+if [ "$WATCHERS" = "Ace/AceApp.swift" ] || [ -z "$WATCHERS" ]; then
+    pass "leaving the app is watched app-wide, not per screen"
+else
+    fail ".presenceLifecycle is applied outside AceApp: $WATCHERS"
+fi
+
 # ------------------------------------------------------------ uncalled code
 #
 # The sibling check. Well-written code that nothing invokes has produced more

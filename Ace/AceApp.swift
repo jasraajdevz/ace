@@ -61,6 +61,15 @@ struct AceApp: App {
                 // to the quiz meant nothing counted, because `recordProgress` had
                 // no reachable receiver.
                 .environment(presence)
+                // Watch for the student leaving and coming back — app-wide, for
+                // the same reason presence itself is.
+                //
+                // This modifier used to sit on `BodyDoubleView`, so slipping off
+                // to another app was only ever noticed while that one screen was
+                // on top. From the quiz or the tutor nothing was recorded: no
+                // `appExits`, no welcome-back, and the mood heuristic that keys
+                // on app exits could never fire.
+                .presenceLifecycle(presence)
                 // Dark-only by design — see DECISIONS.md.
                 .preferredColorScheme(.dark)
                 .tint(Ink.accent)

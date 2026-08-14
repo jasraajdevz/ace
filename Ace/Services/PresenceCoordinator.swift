@@ -192,9 +192,11 @@ final class PresenceCoordinator {
     }
 
     /// The app came back to the foreground.
-    func handleReturnToForeground() {
+    /// Takes `now` for the same reason `tickOnce` does: the behaviour depends on
+    /// elapsed time, and a check that has to wait out real seconds gets deleted.
+    func handleReturnToForeground(now: Date = Date()) {
         guard let leftAt else { return }
-        let away = Date().timeIntervalSince(leftAt)
+        let away = now.timeIntervalSince(leftAt)
         self.leftAt = nil
 
         // Under about ten seconds isn't leaving — it's a notification banner or
@@ -209,8 +211,8 @@ final class PresenceCoordinator {
         offer(.welcomeBack, mood: appState?.mood.mood ?? .neutral, awaySeconds: away)
     }
 
-    func handleLeaveForeground() {
-        leftAt = Date()
+    func handleLeaveForeground(now: Date = Date()) {
+        leftAt = now
     }
 
     private func offer(_ action: GuardianAction, mood: Mood, awaySeconds: TimeInterval = 0) {

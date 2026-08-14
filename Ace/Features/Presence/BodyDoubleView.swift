@@ -76,7 +76,6 @@ struct BodyDoubleView: View {
         }
         .toolbarBackground(.hidden, for: .navigationBar)
         .onReceive(clock) { now = $0 }
-        .presenceLifecycle(presence)
         .celebrations(celebrations)
         .safetyNet()
         .aceAnimation(Motion.smooth, value: presence.session.phase)

@@ -126,7 +126,6 @@ enum AIProviderError: LocalizedError, Sendable, Equatable {
     case rateLimited
     case audioUnavailable
     case noTextFound
-    case cancelled
     case transport(String)
 
     var errorDescription: String? {
@@ -136,7 +135,6 @@ enum AIProviderError: LocalizedError, Sendable, Equatable {
         case .rateLimited: "That was a lot of questions at once."
         case .audioUnavailable: "Ace can't reach the speaker or mic."
         case .noTextFound: "I couldn't read any text in that."
-        case .cancelled: "Stopped."
         case .transport(let detail): detail
         }
     }
@@ -149,7 +147,6 @@ enum AIProviderError: LocalizedError, Sendable, Equatable {
         case .rateLimited: "Give it a few seconds and we'll pick right back up."
         case .audioUnavailable: "Check your volume and that nothing else is using the mic."
         case .noTextFound: "Try again with more light, or paste the text instead."
-        case .cancelled: "No problem — say the word when you're ready."
         case .transport: "Let's try that once more."
         }
     }

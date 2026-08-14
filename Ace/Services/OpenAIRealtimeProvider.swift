@@ -58,6 +58,11 @@ final class OpenAIRealtimeProvider: AIProvider, @unchecked Sendable {
 
     var isReady: Bool { state.isConnected }
 
+    /// Where the socket is. Distinct from `isReady`, which collapses every
+    /// not-connected state into one — this keeps "handshaking" apart from
+    /// "never started" and from "failed".
+    var transportState: TransportState { state.current }
+
     // MARK: - Connection lifecycle
 
     /// Open the session ahead of time. Called when a study session begins.
@@ -69,6 +74,7 @@ final class OpenAIRealtimeProvider: AIProvider, @unchecked Sendable {
         guard !state.isConnected else { return true }
         do {
             let start = Date()
+            state.markConnecting()
             let sessionID = try await transport.connect(apiKey: apiKey, model: model)
             state.markConnected(sessionID: sessionID)
             state.recordHandshake(Date().timeIntervalSince(start))
@@ -394,6 +400,22 @@ final class RealtimeState: @unchecked Sendable {
     var isConnected: Bool {
         lock.lock(); defer { lock.unlock() }
         return _state.isConnected
+    }
+
+    var current: TransportState {
+        lock.lock(); defer { lock.unlock() }
+        return _state
+    }
+
+    /// Entering the handshake.
+    ///
+    /// `TransportState.connecting` existed and was never assigned, so the state
+    /// machine jumped straight from idle to connected and nothing could tell
+    /// "not started" apart from "waiting on the socket" — which is the window
+    /// the student actually spends time in.
+    func markConnecting() {
+        lock.lock(); defer { lock.unlock() }
+        _state = .connecting
     }
 
     func markConnected(sessionID: String) {
