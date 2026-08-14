@@ -105,11 +105,30 @@ enum ShareInbox {
 
     // MARK: Writing (the extension)
 
+    /// Serialises every manifest mutation.
+    ///
+    /// `add` is a read-modify-write — load, append, write — and the share
+    /// extension calls it once per attachment from `NSItemProvider` completion
+    /// handlers, which fire on arbitrary queues and run concurrently. Without
+    /// this, two handlers read the same manifest and the second write erased the
+    /// first item. Sharing 24 things at once left 1: measured, not theorised.
+    ///
+    /// What this covers: every caller inside one process, which is where the
+    /// bug actually was. What it does not: two *processes* interleaving — the
+    /// extension appending while the app drains. That window is much narrower
+    /// (the app is backgrounded while the share sheet is up) and closing it
+    /// properly needs `NSFileCoordinator`. The atomic writes below at least mean
+    /// a reader never sees half a manifest.
+    private static let lock = NSLock()
+
     /// Add an item. Returns false when the App Group isn't available, which the
     /// extension surfaces rather than failing silently.
     @discardableResult
+
     static func add(_ item: ShareInboxItem, payload: Data? = nil) -> Bool {
         guard let manifestURL, let payloadsURL else { return false }
+        lock.lock()
+        defer { lock.unlock() }
 
         do {
             try FileManager.default.createDirectory(at: payloadsURL,
@@ -121,12 +140,14 @@ enum ShareInbox {
                 try payload.write(to: payloadsURL.appendingPathComponent(filename))
             }
 
-            var items = load()
+            var items = loadUnlocked()
             items.append(item)
             // A cap, so a runaway share loop can't fill the container.
             if items.count > 40 { items.removeFirst(items.count - 40) }
             let data = try JSONEncoder().encode(items)
-            try data.write(to: manifestURL)
+            // Atomic: a reader in the other process must never catch a manifest
+            // mid-write and decide the inbox is empty.
+            try data.write(to: manifestURL, options: .atomic)
             return true
         } catch {
             return false
@@ -136,6 +157,16 @@ enum ShareInbox {
     // MARK: Reading (the app)
 
     static func load() -> [ShareInboxItem] {
+        lock.lock()
+        defer { lock.unlock() }
+        return loadUnlocked()
+    }
+
+    /// The body of `load`, without taking the lock — for callers that already
+    /// hold it. `NSLock` is not recursive, so `add` calling the public `load`
+    /// would deadlock rather than race, which is a different bug and not an
+    /// improvement.
+    private static func loadUnlocked() -> [ShareInboxItem] {
         guard let manifestURL,
               let data = try? Data(contentsOf: manifestURL),
               let items = try? JSONDecoder().decode([ShareInboxItem].self, from: data) else {
@@ -158,9 +189,11 @@ enum ShareInbox {
     /// loses one shared item rather than getting it imported twice on every
     /// launch forever.
     static func drain() -> [ShareInboxItem] {
-        let items = load()
+        lock.lock()
+        defer { lock.unlock() }
+        let items = loadUnlocked()
         guard !items.isEmpty else { return [] }
-        clearManifest()
+        clearManifestUnlocked()
         return items
     }
 
@@ -171,8 +204,14 @@ enum ShareInbox {
     }
 
     static func clearManifest() {
+        lock.lock()
+        defer { lock.unlock() }
+        clearManifestUnlocked()
+    }
+
+    private static func clearManifestUnlocked() {
         guard let manifestURL else { return }
-        try? Data("[]".utf8).write(to: manifestURL)
+        try? Data("[]".utf8).write(to: manifestURL, options: .atomic)
     }
 
     /// Remove everything, payloads included. Used by "Reset everything".

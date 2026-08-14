@@ -35,6 +35,7 @@ final class ShareViewController: UIViewController {
     private let accent = UIColor(red: 0.486, green: 0.361, blue: 1.0, alpha: 1)
     private let textPrimary = UIColor(red: 0.961, green: 0.961, blue: 0.980, alpha: 1)
     private let textSecondary = UIColor(red: 0.663, green: 0.663, blue: 0.749, alpha: 1)
+    private let danger = UIColor(red: 1.0, green: 0.478, blue: 0.561, alpha: 1)
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -96,7 +97,9 @@ final class ShareViewController: UIViewController {
             self.spinner.isHidden = true
             self.titleLabel.text = title
             self.detailLabel.text = detail
-            self.titleLabel.textColor = success ? self.textPrimary : self.textPrimary
+            // Both arms of this were `textPrimary`, so a failure looked exactly
+            // like a success — the one moment the colour is carrying meaning.
+            self.titleLabel.textColor = success ? self.textPrimary : self.danger
 
             // Long enough to read, short enough not to be in the way.
             DispatchQueue.main.asyncAfter(deadline: .now() + (success ? 0.9 : 2.2)) {
@@ -127,22 +130,34 @@ final class ShareViewController: UIViewController {
             return
         }
 
-        // Take the first attachment we understand. Sharing five screenshots at
-        // once is a legitimate thing to want, but each becomes its own source,
-        // so the group is processed in turn.
+        // Every attachment we understand, not just the first: sharing five
+        // screenshots at once is a legitimate thing to want, and each becomes
+        // its own source.
+        // `NSItemProvider` completion handlers fire on arbitrary queues, and
+        // several attachments are in flight at once, so this counter is written
+        // concurrently. `savedCount += 1` is a read-modify-write: unsynchronised,
+        // it can lose increments and report "Sent 3 items" for five.
         let group = DispatchGroup()
+        let countLock = NSLock()
         var savedCount = 0
 
         for provider in attachments {
             group.enter()
             process(provider) { didSave in
-                if didSave { savedCount += 1 }
+                if didSave {
+                    countLock.lock()
+                    savedCount += 1
+                    countLock.unlock()
+                }
                 group.leave()
             }
         }
 
         group.notify(queue: .main) { [weak self] in
             guard let self else { return }
+            countLock.lock()
+            let savedCount = savedCount
+            countLock.unlock()
             if savedCount > 0 {
                 self.finish(title: savedCount == 1 ? "Sent to Ace" : "Sent \(savedCount) items to Ace",
                             detail: "Open Ace and it'll be ready.",

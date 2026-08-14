@@ -19,13 +19,17 @@ import WidgetKit
 import SwiftUI
 
 struct QuickCaptureIntent: AppIntent {
-    static var title: LocalizedStringResource = "Add study material"
-    static var description = IntentDescription(
+    // `let`, not `var`. `AppIntent` declares these as `{ get }` requirements, so
+    // a constant satisfies them — and a stored `static var` is globally mutable
+    // shared state that any thread could write, which is a data race the Swift 6
+    // language mode rejects outright.
+    static let title: LocalizedStringResource = "Add study material"
+    static let description = IntentDescription(
         "Opens Ace ready to photograph, scan or paste something."
     )
 
     /// We need the app: this ends at the camera.
-    static var openAppWhenRun: Bool = true
+    static let openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {
         // Written to the shared container rather than passed through the URL, so

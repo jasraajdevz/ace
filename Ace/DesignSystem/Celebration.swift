@@ -257,7 +257,12 @@ struct XPToast: View, Equatable {
     @State private var offset: CGFloat = -60
     @State private var opacity: Double = 0
 
-    static func == (lhs: XPToast, rhs: XPToast) -> Bool {
+    /// `nonisolated` because a `View` is main-actor isolated and `Equatable` is
+    /// not: without it the synthesised entry point lets another actor compare two
+    /// toasts while the main actor is mutating them. Only the two immutable,
+    /// `Sendable` fields are read, which is what makes stepping outside the actor
+    /// safe here rather than merely quiet.
+    nonisolated static func == (lhs: XPToast, rhs: XPToast) -> Bool {
         lhs.amount == rhs.amount && lhs.caption == rhs.caption
     }
 

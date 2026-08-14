@@ -235,6 +235,16 @@ struct FocusMusicPicker: View {
     let current: FocusScene
     let volume: Double
     let onSelect: (FocusScene) -> Void
+    // Deliberately NOT `@Sendable`, despite the strict-concurrency warning that
+    // `Binding`'s setter wants one. Both callers legitimately mutate main-actor
+    // state inside it — `SettingsView` its own `@State`, `BodyDoubleView` the
+    // music player — and marking it `@Sendable` makes those call sites a
+    // compile error rather than making anything safer.
+    //
+    // The honest fix is `@Binding var volume`, which removes the closure
+    // entirely. That needs a stored `volume` on `FocusMusicPlayer`, which today
+    // only exposes `setVolume(_:)`. Logged as a known exception in
+    // Tools/gen/check_concurrency.sh rather than annotated around.
     let onVolume: (Double) -> Void
 
     var body: some View {

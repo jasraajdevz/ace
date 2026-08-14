@@ -83,10 +83,10 @@ while IFS= read -r file; do
         echo "$OUT" | grep "error:" | sed 's|^|      |' | head -5
         SYNTAX_ERRORS=$((SYNTAX_ERRORS + 1))
     fi
-done < <(find Ace AceWidget Shared -name "*.swift" -type f | sort)
+done < <(find Ace AceWidget Shared AceShare -name "*.swift" -type f | sort)
 
 if [ "$SYNTAX_ERRORS" -eq 0 ]; then
-    pass "$FILE_COUNT files parse clean (covers the extensions, which target iOS only)"
+    pass "$FILE_COUNT files parse clean (covers both extensions, which target iOS only)"
 fi
 
 # ---------------------------------------------------------------- 3. project integrity
@@ -199,6 +199,16 @@ else
 fi
 
 # ---------------------------------------------------------------- 4. hygiene
+
+# Data races the shipping build is configured not to mention.
+# See Tools/gen/check_concurrency.sh for what it found and why it runs swiftc
+# directly rather than through SPM.
+if CONC=$(./Tools/gen/check_concurrency.sh 2>&1); then
+    pass "$CONC"
+else
+    fail "strict concurrency found data-race hazards in app code"
+    printf "%s\n" "$CONC" | sed 's/^/      /' | head -12
+fi
 
 section "4 · Hygiene"
 

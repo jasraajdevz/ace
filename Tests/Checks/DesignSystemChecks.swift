@@ -352,3 +352,61 @@ enum WidgetAgingChecks {
         }
     }
 }
+
+// MARK: - Sharing several things at once
+
+/// `ShareInbox.add` is called once per attachment, from `NSItemProvider`
+/// completion handlers — which fire on arbitrary queues, concurrently.
+///
+/// It was a read-modify-write over a shared file with no synchronisation at
+/// all: `load()`, append, `write`. Two handlers landing together both read the
+/// same manifest and the second write erased the first item. Sharing five
+/// screenshots at once — which the extension explicitly supports — quietly
+/// dropped some of them.
+///
+/// This is the file the share extension leans on, and until now nothing in the
+/// project executed a single line of it under concurrency.
+enum ShareConcurrencyChecks {
+    static let all = CheckSuite(name: "Sharing several items at once") { run in
+        guard ShareInbox.containerURL != nil else {
+            // No App Group on this machine — the store has nowhere to live.
+            // Say so rather than reporting a pass that proved nothing.
+            run.expect(true, "App Group unavailable here; inbox concurrency not exercised")
+            return
+        }
+
+        ShareInbox.clearAll()
+
+        // Baseline first. If sequential adds don't work on this machine, the
+        // concurrent result proves nothing about the race — it would just be
+        // measuring a broken container.
+        run.expect(ShareInbox.add(ShareInboxItem(payload: .text, inlineText: "one")),
+                   "a single sequential add must succeed before concurrency means anything")
+        run.expectEqual(ShareInbox.load().count, 1, "and must be readable back")
+        ShareInbox.clearAll()
+
+        let total = 24
+        let group = DispatchGroup()
+        let queue = DispatchQueue(label: "share.hammer", attributes: .concurrent)
+        for index in 0..<total {
+            group.enter()
+            queue.async {
+                _ = ShareInbox.add(ShareInboxItem(payload: .text,
+                                                  inlineText: "item \(index)"))
+                group.leave()
+            }
+        }
+        _ = group.wait(timeout: .now() + 10)
+
+        let stored = ShareInbox.load()
+        run.expectEqual(stored.count, total,
+                        "every concurrently shared item must survive — lost "
+                        + "\(total - stored.count) of \(total)")
+
+        let texts = Set(stored.compactMap(\.inlineText))
+        run.expectEqual(texts.count, stored.count, "no item may be duplicated")
+
+        ShareInbox.clearAll()
+        run.expectEqual(ShareInbox.load().count, 0, "clearing empties the inbox")
+    }
+}

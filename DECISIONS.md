@@ -941,3 +941,58 @@ the hourly cadence to notice, and the views take the entry's date rather than
 asking the clock — an entry built in advance and rendered later would otherwise
 compute the wrong day.
 
+## D61 — The share extension had no verification at all
+
+`AceShare/` was in none of the three layers: not the SPM target, not the
+macro-stripping type-check, and not even the syntax gate, whose `find` covered
+only `Ace AceWidget Shared`. One file, 253 lines, checked by nothing.
+
+Reading it found three bugs, and one of them was in `Shared/ShareInbox.swift`
+rather than the extension:
+
+  • `ShareInbox.add` is a read-modify-write — load, append, write — with no
+    synchronisation, called once per attachment from `NSItemProvider` completion
+    handlers, which fire on arbitrary queues. Sharing 24 things at once left 1.
+    Measured, not theorised: a check hammers it concurrently and asserts nothing
+    is lost, with a sequential baseline first so a broken container cannot
+    masquerade as a passing race.
+  • `savedCount += 1` in the extension, incremented from those same handlers,
+    so "Sent 3 items" could undercount.
+  • `titleLabel.textColor = success ? textPrimary : textPrimary` — both arms
+    identical, so a failure looked exactly like a success at the one moment the
+    colour carried meaning.
+
+The in-process lock does not close the cross-*process* window — the extension
+appending while the app drains. That needs `NSFileCoordinator`. The writes are
+at least atomic now, so a reader never sees half a manifest. Stated rather than
+glossed.
+
+## D62 — Strict concurrency as a separate pass, and how not to write that check
+
+The app ships in the Swift 5 language mode with minimal concurrency checking.
+That is the right default, but it means the compiler stays quiet about races it
+can already see. `Tools/gen/check_concurrency.sh` runs the complete check as its
+own pass, changing nothing about how the app builds.
+
+It found six `NSLock.lock()` calls inside `async` functions in
+`RealtimeAudioPlayer` — an error outright in Swift 6, because awaiting while
+holding a lock blocks a thread from the cooperative pool. Also three `static var`
+protocol requirements on `QuickCaptureIntent`, an `Equatable` conformance on
+`XPToast` crossing out of main-actor isolation, and a captured `var` handed to
+`AVAudioConverter`'s `@Sendable` input block.
+
+**The check was wrong first, and worth recording.** The initial version ran
+`swift build -Xswiftc -strict-concurrency=complete` and reported a clean pass —
+while compiling nothing. SPM considered the module up to date, emitted no
+warnings, and the grep read that silence as success. It could only ever pass.
+Switching to `swiftc` on an explicit file list makes the work unconditional, and
+the check is now verified the way everything else here is: by injecting a hazard
+and confirming it fails.
+
+Two diagnostics are allowlisted with reasons rather than annotated away. The
+`scheduleBuffer` async alternative suspends until playback finishes, which would
+serialise streaming audio into one buffer at a time. And `FocusMusicPicker`'s
+volume callback cannot be `@Sendable` without breaking both of its callers,
+which legitimately mutate main-actor state; the real fix is `@Binding var
+volume`, which needs a stored property `FocusMusicPlayer` does not have yet.
+
