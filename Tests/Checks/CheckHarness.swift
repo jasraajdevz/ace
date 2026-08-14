@@ -148,6 +148,7 @@ enum AllChecks {
             WidgetAgingChecks.all,
             ShareConcurrencyChecks.all,
             MutePreferenceChecks.all,
+            CaptureFlowChecks.all,
             ServiceChecks.comfortMute,
             ServiceChecks.providerSwitching,
             ServiceChecks.moodEasing,

@@ -1028,3 +1028,45 @@ identical-ternary in the share extension was the only one), and the other flags
 the scan flagged are `@FocusState` or `.sheet(isPresented:)` bindings, which
 SwiftUI resets itself.
 
+## D64 — The capture state machine came out of the view
+
+The twelve feature views type-check and never execute. On a machine with no
+simulator that is the same as untested, and `CaptureView` proved it: when the
+safety net fired on recognised text, `process` returned while the stage was
+still `.reading`. A student whose photographed page tripped the crisis net
+dismissed the support screen and landed back on a spinner that never stopped —
+the app appearing broken at the worst possible moment.
+
+`CaptureFlow` now owns the stage, the recognised text, the thumbnail and every
+transition. It knows nothing about SwiftUI; the provider and the safety
+coordinator arrive as parameters, so the checks drive exactly the code the
+screen runs, with a stub provider returning controlled text instead of Vision
+and a real photograph.
+
+The rule the extraction makes enforceable: `process` is the only thing that can
+move the screen off `.reading`, so every exit assigns a stage. The check that
+proves it puts the bug back and watches for `expected choosing, got reading`.
+
+The safety path also clears the recognised text and the thumbnail. Leaving the
+page that triggered the response loaded, so it reappears the instant the student
+dismisses the support screen, would be careless.
+
+Not every view needs this. It is worth doing where the logic has branches that
+can strand someone — capture had five stages and an async path with three
+failure modes. `QuizView` and `FlashcardView` delegate to `QuizRunner` and
+`FlashcardRunner`, which are already pure and already tested.
+
+## D65 — The speaking drill's clock starts with the microphone
+
+`startedAt` was set when the button was tapped, before `await voice.start(...)`.
+That call requests microphone permission, and on first use the system prompt sits
+on screen for as long as the student takes to read it — several seconds, all of
+it counted as speaking time.
+
+It fed two things: the duration handed to `SpeakingDrillScorer`, and the
+`elapsed < 15` gate that decides whether an answer was long enough. A student
+could be told a twelve-second answer was fine when eight of those seconds were
+spent looking at a permission dialog.
+
+The clock now starts inside the branch where recording actually began.
+

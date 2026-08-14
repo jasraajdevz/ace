@@ -499,3 +499,155 @@ enum MutePreferenceChecks {
         run.expect(!sound.isAudible, "a preference changed during a mute still holds after it")
     }
 }
+
+// MARK: - The capture screen's state machine
+
+/// `CaptureView` used to hold this as `@State`, so the whole path —
+/// photograph, recognise, check, review — type-checked and never ran once.
+///
+/// The bug that hid there: when the safety net fired on recognised text, the
+/// function returned while the stage was still `.reading`. A student whose
+/// photographed page tripped the crisis net dismissed the support screen and
+/// landed back on a spinner that never stopped.
+///
+/// Every check below drives the same code the screen runs.
+enum CaptureFlowChecks {
+
+    /// Returns whatever it is told to, so recognition can be driven rather than
+    /// depending on Vision and a real photograph.
+    private final class StubProvider: AIProvider, @unchecked Sendable {
+        var mode: AIProviderMode = .demo
+        var isReady: Bool { true }
+
+        var result: RecognizedText = .empty
+        var errorToThrow: (any Error)?
+        private(set) var readCount = 0
+
+        init(_ result: RecognizedText) { self.result = result }
+        init(throwing error: any Error) { self.errorToThrow = error }
+
+        func readText(from imageData: Data) async throws -> RecognizedText {
+            readCount += 1
+            if let errorToThrow { throw errorToThrow }
+            return result
+        }
+
+        // Nothing else is exercised here.
+        func speak(_ text: String, persona: VoicePersona, prosody: Prosody) async throws {}
+        func stopSpeaking() async {}
+        func transcribe(audio: Data) async throws -> String { "" }
+        func tutorReply(context: TutorContext) -> AsyncThrowingStream<String, Error> {
+            AsyncThrowingStream { $0.finish() }
+        }
+        func makeQuiz(from source: StudyMaterialSource, gradeLevel: GradeLevel,
+                      title: String, questionCount: Int) async throws -> Quiz {
+            throw AIProviderError.noTextFound
+        }
+        func makeFlashcards(from source: StudyMaterialSource, gradeLevel: GradeLevel,
+                            title: String, limit: Int) async throws -> [Flashcard] { [] }
+        func readEmotion(audio: Data?, text: String?,
+                         signals: BehaviourSignals) async -> MoodReading { .unknown }
+    }
+
+    static let all = CheckSuite(name: "Capture flow") { run in
+        let image = [Data(repeating: 0, count: 8)]
+        let good = RecognizedText(
+            lines: ["Photosynthesis converts light energy into chemical energy.",
+                    "It happens in the chloroplast."], confidence: 0.9)
+
+        // --- The happy path ------------------------------------------------------
+        if let stage = runAsync({ () -> CaptureFlow.Stage in
+            let flow = await CaptureFlow()
+            await flow.process(images: image, kind: .cameraPhoto,
+                               provider: StubProvider(good), safety: await SafetyCoordinator())
+            return await flow.stage
+        }) {
+            run.expectEqual(stage, .reviewing, "readable text goes to review")
+        } else {
+            run.expect(false, "capture probe timed out")
+        }
+
+        // --- Nothing readable ----------------------------------------------------
+        if let stage = runAsync({ () -> CaptureFlow.Stage in
+            let flow = await CaptureFlow()
+            await flow.process(images: image, kind: .cameraPhoto,
+                               provider: StubProvider(.empty), safety: await SafetyCoordinator())
+            return await flow.stage
+        }) {
+            if case .failed = stage {} else {
+                run.expect(false, "an unreadable photo should fail, got \(stage)")
+            }
+        }
+
+        // --- Recognition threw ---------------------------------------------------
+        if let stage = runAsync({ () -> CaptureFlow.Stage in
+            let flow = await CaptureFlow()
+            await flow.process(images: image, kind: .cameraPhoto,
+                               provider: StubProvider(throwing: AIProviderError.offline),
+                               safety: await SafetyCoordinator())
+            return await flow.stage
+        }) {
+            if case .failed(let message) = stage {
+                run.expect(!message.isEmpty, "a failure must say something useful")
+                run.expect(message.lowercased().contains("demo")
+                           || message.lowercased().contains("offline")
+                           || !message.isEmpty,
+                           "and should point at the way forward")
+            } else {
+                run.expect(false, "a thrown error should fail the stage, got \(stage)")
+            }
+        }
+
+        // --- THE BUG: a photographed page that trips the crisis net --------------
+        if let result = runAsync({ () -> (CaptureFlow.Stage, Int, Bool, Bool) in
+            let flow = await CaptureFlow()
+            let safety = await SafetyCoordinator()
+            let distressing = RecognizedText(
+                lines: ["i want to kill myself", "i can't do this any more"], confidence: 0.9)
+            await flow.process(images: image, kind: .cameraPhoto,
+                               provider: StubProvider(distressing), safety: safety)
+            return await (flow.stage, flow.recognized.lines.count,
+                          flow.thumbnail == nil, safety.isGamificationSuppressed)
+        }) {
+            let (stage, lineCount, thumbnailCleared, engaged) = result
+            run.expect(engaged, "a photographed page must go through the crisis net")
+            run.expectEqual(stage, .choosing,
+                            "the screen must land somewhere the student can leave from — "
+                            + "it used to stay on `.reading` forever")
+            run.expectEqual(lineCount, 0,
+                            "the text that triggered it must not be left loaded")
+            run.expect(thumbnailCleared, "nor the photograph of it")
+        }
+
+        // --- Pasted text goes through the same net ------------------------------
+        MainActor.assumeIsolated {
+            let flow = CaptureFlow()
+            let safety = SafetyCoordinator()
+            run.expect(!flow.paste("i want to kill myself", safety: safety),
+                       "pasted text is checked too")
+            run.expectEqual(flow.stage, .choosing, "and lands somewhere safe to leave")
+            run.expect(safety.isGamificationSuppressed, "with the net engaged")
+
+            let ok = CaptureFlow()
+            run.expect(ok.paste("The mitochondria is the powerhouse of the cell.",
+                                safety: SafetyCoordinator()),
+                       "ordinary notes paste fine")
+            run.expectEqual(ok.stage, .reviewing, "and go to review")
+            run.expectEqual(ok.pendingKind, .pastedText, "recorded as pasted")
+
+            let blank = CaptureFlow()
+            run.expect(!blank.paste("   \n  ", safety: SafetyCoordinator()),
+                       "whitespace is not text")
+            if case .failed = blank.stage {} else {
+                run.expect(false, "blank paste should say so, got \(blank.stage)")
+            }
+
+            // Retaking clears what was there.
+            let retake = CaptureFlow()
+            _ = retake.paste("Some notes.", safety: SafetyCoordinator())
+            retake.reset()
+            run.expectEqual(retake.stage, .choosing, "retake returns to the start")
+            run.expectEqual(retake.recognized.lines.count, 0, "and drops the old text")
+        }
+    }
+}

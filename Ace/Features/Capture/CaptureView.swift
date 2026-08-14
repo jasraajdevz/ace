@@ -25,19 +25,8 @@ struct CaptureView: View {
     /// Called with the saved source so the caller can navigate to it.
     var onSaved: (StudySource) -> Void = { _ in }
 
-    @State private var stage: Stage = .choosing
+    @State private var flow = CaptureFlow()
     @State private var activeSheet: CaptureSheet?
-    @State private var recognized: RecognizedText = .empty
-    @State private var pendingKind: SourceKind = .pastedText
-    @State private var thumbnail: Data?
-
-    private enum Stage: Equatable {
-        case choosing
-        case pasting
-        case reading          // OCR in flight
-        case reviewing
-        case failed(String)
-    }
 
     private enum CaptureSheet: Identifiable {
         case camera, library, scanner
@@ -47,9 +36,9 @@ struct CaptureView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AuraBackground(isStill: stage == .reading)
+                AuraBackground(isStill: flow.stage == .reading)
 
-                switch stage {
+                switch flow.stage {
                 case .choosing:
                     chooserContent
                 case .pasting:
@@ -64,26 +53,26 @@ struct CaptureView: View {
                         }
                 case .reviewing:
                     SourceReviewView(
-                        recognized: recognized,
-                        kind: pendingKind,
+                        recognized: flow.recognized,
+                        kind: flow.pendingKind,
                         profile: profile,
-                        thumbnail: thumbnail,
+                        thumbnail: flow.thumbnail,
                         onSave: save,
-                        onRetake: { stage = .choosing }
+                        onRetake: { flow.reset() }
                     )
                 case .failed(let message):
                     AceErrorState(
                         title: "I couldn't read that",
                         message: message,
                         retryTitle: "Try another way",
-                        onRetry: { stage = .choosing },
+                        onRetry: { flow.reset() },
                         secondaryTitle: "Paste the text instead",
-                        onSecondary: { stage = .pasting }
+                        onSecondary: { flow.beginPasting() }
                     )
                     .padding(.top, Space.xxl)
                 }
             }
-            .navigationTitle(stage == .choosing ? "Add material" : "")
+            .navigationTitle(flow.stage == .choosing ? "Add material" : "")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -174,7 +163,7 @@ struct CaptureView: View {
                     symbol: "text.alignleft",
                     title: "Paste text",
                     detail: "Notes, an article, anything you can copy."
-                ) { stage = .pasting }
+                ) { flow.beginPasting() }
             }
             .aceScreenPadding()
             .padding(.top, Space.l)
@@ -201,58 +190,13 @@ struct CaptureView: View {
     // MARK: - Pipeline
 
     private func beginPaste(_ text: String) {
-        // Free text goes through the safety net before anything else touches it.
-        guard !appState.safety.check(text) else { return }
-
-        let cleaned = text.trimmed
-        guard !cleaned.isEmpty else {
-            stage = .failed("There wasn't any text in that.")
-            return
-        }
-        pendingKind = .pastedText
-        thumbnail = nil
-        recognized = RecognizedText(lines: cleaned.components(separatedBy: .newlines), confidence: 1)
-        stage = .reviewing
+        flow.paste(text, safety: appState.safety)
     }
 
     private func process(_ images: [Data], kind: SourceKind) {
-        pendingKind = kind
-        thumbnail = images.first
-        stage = .reading
-
         Task {
-            do {
-                var lines: [String] = []
-                var confidences: [Double] = []
-
-                for data in images {
-                    let result = try await appState.provider.readText(from: data)
-                    lines.append(contentsOf: result.lines)
-                    if !result.lines.isEmpty { confidences.append(result.confidence) }
-                }
-
-                let confidence = confidences.isEmpty
-                    ? 0 : confidences.reduce(0, +) / Double(confidences.count)
-                let result = RecognizedText(lines: lines, confidence: confidence)
-
-                guard result.isUsable else {
-                    stage = .failed(AIProviderError.noTextFound.studentFacingSuggestion)
-                    return
-                }
-
-                // The recognised text is student-authored content too, so it
-                // gets checked like anything else — a photographed diary page
-                // must not slip past the net.
-                if appState.safety.check(result.lines.joined(separator: " ")) { return }
-
-                recognized = result
-                Feedback.complete()
-                stage = .reviewing
-            } catch let error as AIProviderError {
-                stage = .failed(error.studentFacingSuggestion)
-            } catch {
-                stage = .failed("Something went wrong reading that. Try again, or paste the text.")
-            }
+            await flow.process(images: images, kind: kind,
+                               provider: appState.provider, safety: appState.safety)
         }
     }
 
@@ -262,14 +206,14 @@ struct CaptureView: View {
 
         let source = StudySource(
             title: title.isEmpty ? defaultTitle : title,
-            kind: pendingKind,
-            rawText: recognized.lines.joined(separator: "\n"),
+            kind: flow.pendingKind,
+            rawText: flow.rawText,
             cleanedText: cleanedText,
             studentNote: note,
             subject: subject,
-            confidence: recognized.confidence
+            confidence: flow.recognized.confidence
         )
-        source.thumbnailData = thumbnail
+        source.thumbnailData = flow.thumbnail
 
         modelContext.insert(source)
 
@@ -293,7 +237,7 @@ struct CaptureView: View {
     private var defaultTitle: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "d MMM"
-        return "\(pendingKind.displayName) · \(formatter.string(from: Date()))"
+        return "\(flow.pendingKind.displayName) · \(formatter.string(from: Date()))"
     }
 }
 

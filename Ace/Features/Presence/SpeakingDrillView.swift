@@ -277,11 +277,16 @@ struct SpeakingDrillView: View {
         problem = nil
         transcript = ""
         elapsed = 0
-        startedAt = Date()
 
         Task {
             let started = await voice.start(appState: appState)
             if started {
+                // The clock starts when the microphone does, not when the button
+                // was tapped. `voice.start` requests permission, and on first use
+                // that system prompt can sit on screen for several seconds —
+                // every one of which used to count as speaking time, inflating
+                // both the scored duration and the "was that long enough" gate.
+                startedAt = Date()
                 stage = .recording
                 Feedback.press()
             } else {
