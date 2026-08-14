@@ -159,12 +159,36 @@ struct PaywallView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            if let notice = store.restoreNotice {
+                Text(notice)
+                    .font(Typeface.caption)
+                    .foregroundStyle(Ink.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             HStack(spacing: Space.l) {
-                Button("Restore purchases") {
+                // Restoring runs `AppStore.sync()`, which regularly takes a few
+                // seconds and can present a system sign-in sheet. A button that
+                // stays idle-looking through that reads as broken.
+                Button {
                     Task { await store.restore() }
+                } label: {
+                    if store.isRestoring {
+                        HStack(spacing: Space.xs) {
+                            ProgressView()
+                                .controlSize(.mini)
+                                .tint(Ink.textTertiary)
+                            Text("Restoring…")
+                        }
+                    } else {
+                        Text("Restore purchases")
+                    }
                 }
                 .font(Typeface.caption)
                 .foregroundStyle(Ink.textTertiary)
+                .disabled(store.isRestoring)
+                .accessibilityLabel(store.isRestoring ? "Restoring purchases" : "Restore purchases")
 
                 Button("Not now", action: onDismiss)
                     .font(Typeface.caption)

@@ -320,8 +320,14 @@ struct BodyDoubleView: View {
 
     private func end() {
         if presence.isSessionActive { presence.finishSession() }
-        recorder?.award(.metGoal)
-        recorder?.finish(mood: appState.mood.mood)
+
+        // `finishSession` has just worked out whether the goal was reached —
+        // use it. Awarding the goal bonus unconditionally, which is what used to
+        // happen, paid the student for quitting thirty seconds in and made the
+        // reward mean nothing (§10).
+        let metGoal = presence.session.phase.metGoal
+        if metGoal { recorder?.award(.metGoal) }
+        recorder?.finish(mood: appState.mood.mood, goal: presence.goal, metGoal: metGoal)
         presence.music.stop()
         Task { await appState.stopSpeaking() }
     }

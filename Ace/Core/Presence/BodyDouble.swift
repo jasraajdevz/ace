@@ -38,6 +38,13 @@ enum BodyDoublePhase: Sendable, Equatable {
         case .settingGoal, .finished: false
         }
     }
+
+    /// Whether the goal was actually reached. False for a session that never
+    /// finished — abandoning one is not meeting it.
+    var metGoal: Bool {
+        if case .finished(let met) = self { return met }
+        return false
+    }
 }
 
 /// Something Ace says during the session, unprompted.

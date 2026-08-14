@@ -32,9 +32,6 @@ final class Profile {
     var createdAt: Date = Date()
     var hasCompletedOnboarding: Bool = false
 
-    // Preferences that belong to the person rather than the device.
-    var prefersReducedCelebration: Bool = false
-
     init() {}
 
     // MARK: Typed accessors
@@ -288,8 +285,11 @@ final class StudySession {
     var appExits: Int = 0
     /// Last mood we read, for the session summary.
     var endingMoodRaw: String = Mood.neutral.rawValue
-    /// True if the crisis net engaged at any point. When set, the session
-    /// summary shows no score, no XP and no celebration.
+    /// True if the crisis net engaged at any point during the session.
+    ///
+    /// Recorded on the row so a future history view can honour it without
+    /// needing the `SafetyCoordinator` that was live at the time. Suppression
+    /// *during* the session is that coordinator's job, not this flag's.
     var safetyEngaged: Bool = false
 
     init(sourceID: UUID? = nil, sourceTitle: String = "") {

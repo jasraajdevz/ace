@@ -48,6 +48,9 @@ final class StoreController {
     private(set) var purchasedTier: Tier = .free
     private(set) var isRestoring = false
     private(set) var purchaseError: String?
+    /// The outcome of the last restore, when it wasn't a failure. Shown neutrally
+    /// — "nothing to restore" is information, not an error.
+    private(set) var restoreNotice: String?
 
     /// True when the student supplied their own OpenAI key.
     var hasOwnKey = false
@@ -229,11 +232,36 @@ final class StoreController {
         UserDefaults.standard.set(best.rawValue, forKey: Self.tierKey)
     }
 
+    /// Restore purchases, and say what happened.
+    ///
+    /// Every branch reports something. A restore that silently finds nothing is
+    /// indistinguishable from one that failed, and the student is left tapping a
+    /// button that appears to do nothing — which is exactly the moment someone
+    /// who has already paid decides the app is broken.
     func restore() async {
+        guard !isRestoring else { return }   // double-taps must not queue syncs
         isRestoring = true
+        purchaseError = nil
+        restoreNotice = nil
         defer { isRestoring = false }
-        try? await AppStore.sync()
+
+        let before = purchasedTier
+        do {
+            try await AppStore.sync()
+        } catch {
+            purchaseError = "Couldn't reach the App Store. Check your connection and try again."
+            return
+        }
         await refreshEntitlements()
+
+        if purchasedTier == .free {
+            restoreNotice = "No previous purchase found on this Apple ID. "
+                + "If you subscribed with a different one, sign in with that and try again."
+        } else if purchasedTier != before {
+            restoreNotice = "\(purchasedTier.displayName) restored."
+        } else {
+            restoreNotice = "\(purchasedTier.displayName) is already active."
+        }
     }
 
     /// Listens for renewals and revocations that happen outside the app.

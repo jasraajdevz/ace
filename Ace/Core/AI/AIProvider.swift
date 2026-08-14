@@ -227,8 +227,6 @@ struct BehaviourSignals: Sendable, Equatable {
     var lastResponseLatency: TimeInterval = 0
     /// Rolling average of the above.
     var averageResponseLatency: TimeInterval = 0
-    /// Characters per second while typing. 0 when unknown.
-    var typingSpeed: Double = 0
     /// Seconds since the student last did anything.
     var idleSeconds: TimeInterval = 0
     /// How many times they've left and come back this session.

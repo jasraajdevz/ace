@@ -112,10 +112,20 @@ final class SessionRecorder {
     // MARK: - Finishing
 
     /// Close the session and publish the widget.
-    func finish(mood: Mood = .neutral) {
+    ///
+    /// `goal` and `metGoal` come from the body-double session when there was
+    /// one. `StudySession` has carried fields for both since the model was
+    /// written and nothing ever filled them, so session history recorded what
+    /// the student did but never what they set out to do.
+    func finish(mood: Mood = .neutral, goal: StudyGoal? = nil, metGoal: Bool = false) {
         guard session.isActive else { return }
         session.endedAt = Date()
         session.endingMood = mood
+        session.goalText = goal?.rawText ?? ""
+        session.goalMet = metGoal
+        // Recorded on the row itself so the history can honour it later without
+        // needing the coordinator that was live at the time.
+        session.safetyEngaged = safety.isGamificationSuppressed
 
         if !safety.isGamificationSuppressed {
             progress.sessionsCompleted += 1

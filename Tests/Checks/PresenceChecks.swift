@@ -861,5 +861,36 @@ enum VoiceSafetyChecks {
                                                sourceText: SourceTutorChecks.source,
                                                duration: 12)
         run.expect(scored.score.overall >= 0, "scoring a crisis transcript must not crash")
+
+        // --- Ending a session is not the same as meeting the goal ----------------
+        //
+        // `BodyDoubleView.end()` used to award the goal bonus every time the
+        // student pressed End, including thirty seconds in. The value it needed
+        // was already sitting in the phase.
+        run.expect(!BodyDoublePhase.settingGoal.metGoal, "no goal met before starting")
+        run.expect(!BodyDoublePhase.working.metGoal, "no goal met while still working")
+        run.expect(!BodyDoublePhase.paused.metGoal, "no goal met while paused")
+        run.expect(!BodyDoublePhase.finished(metGoal: false).metGoal,
+                   "a session finished short of the goal did not meet it")
+        run.expect(BodyDoublePhase.finished(metGoal: true).metGoal,
+                   "a session finished at the goal met it")
+
+        do {
+            // Quitting one minute into a 25-minute goal.
+            var session = BodyDoubleSession()
+            _ = session.begin(goal: StudyGoal(target: .duration(minutes: 25),
+                                              rawText: "25 minutes"))
+            _ = session.finish()
+            run.expect(!session.phase.metGoal,
+                       "ending a 25-minute goal immediately must not count as met")
+
+            // The counterpart: sit out the whole 25 minutes and it does count.
+            var completed = BodyDoubleSession()
+            let started = Date()
+            _ = completed.begin(goal: StudyGoal(target: .duration(minutes: 25),
+                                                rawText: "25 minutes"), now: started)
+            _ = completed.finish(now: started.addingTimeInterval(26 * 60))
+            run.expect(completed.phase.metGoal, "sitting out the full goal meets it")
+        }
     }
 }

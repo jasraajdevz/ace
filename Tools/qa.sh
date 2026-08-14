@@ -245,6 +245,19 @@ else
     pass "no key material in UserDefaults"
 fi
 
+# ---------------------------------------------------------- write-only state
+#
+# The check that would have caught `celebrationsMuted`: a property set by one
+# part of the app and read by none. See the script's header for why nothing
+# else finds this class.
+
+if DEAD=$(python3 Tools/gen/find_dead_writes.py 2>&1); then
+    pass "no unaccounted write-only properties"
+else
+    fail "a property is written but never read"
+    printf "%s\n" "$DEAD" | sed 's/^/      /'
+fi
+
 # ---------------------------------------------------------------- result
 
 printf "\n"

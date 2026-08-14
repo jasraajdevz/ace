@@ -682,3 +682,57 @@ The boundary is drawn deliberately: the checks never assert on cascade deletes,
 relationship inverse maintenance or `@Attribute(.unique)`. Those are real
 SwiftData behaviours the shim doesn't emulate, and asserting on them would be
 testing the shim rather than the app.
+
+## D46 — The Keychain became a protocol so the key lifecycle could be tested
+
+`ProviderController` called `KeychainService` directly, which made every branch
+of the key lifecycle — save, replace, remove, and what the provider does in
+response — untestable: a headless process either fails Keychain access or blocks
+on a prompt. `SecretStore` now has a production implementation wrapping
+`KeychainService` and an in-memory one used only by the checks.
+
+The seam is load-bearing, so the QA sweep follows both halves of it: the
+production store must reach `KeychainService`, the controller must default to
+it, and app code must never name the in-memory one. Checking only the first
+would happily pass with the app wired to the test double.
+
+## D47 — Write-only properties are now a build gate
+
+`AppState.celebrationsMuted` was set by the comfort responder and read by
+nothing. Fourteen call sites gated the game layer on the crisis flag; none
+checked the comfort one. So Ace responded to "I'm exhausted" with a warm
+sentence and then an XP toast — and it type-checked, and every test passed,
+because writing to a property is a perfectly legitimate thing to do.
+
+Nothing in the toolchain finds that. `Tools/gen/find_dead_writes.py` does, by
+asking across the whole app whether anything reads each stored property back.
+The same sweep found `StudySession.goalMet`/`.goalText`/`.safetyEngaged` — three
+columns with doc comments describing behaviour that depended on them, never
+written by anyone — and `StoreController.isRestoring`, tracked correctly and
+ignored by the button.
+
+It runs in `Tools/qa.sh` with an allowlist, and the allowlist is half the point:
+an inert property now has to be argued for in writing rather than merely
+forgotten.
+
+## D48 — The comfort mute quiets display, not earning
+
+The crisis net suppresses both earning and showing, and should. The comfort mute
+deliberately does not: someone who admits to being tired keeps every point and
+every day of their streak, they just stop being congratulated for a while.
+Erasing progress because a student was honest about their state would be the
+manipulation §10 exists to prevent.
+
+That split is why the mute lives on `CelebrationCenter` (display) while the
+crisis flag stays on `SafetyCoordinator` (both), and why `AppState` registers
+the active celebration center — a mute decided mid-session has to land, and
+setting a flag once when the screen appears misses the only moment it matters.
+
+## D49 — Ending a body-double session no longer awards the goal
+
+`BodyDoubleView.end()` called `recorder.award(.metGoal)` unconditionally, so
+quitting thirty seconds into a 25-minute goal paid the same bonus as finishing
+it. `finishSession()` had already computed the right answer one line earlier and
+stored it in the phase; it just wasn't read. A reward given for not doing the
+thing makes every other reward mean less.
+

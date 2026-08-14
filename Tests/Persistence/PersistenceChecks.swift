@@ -283,6 +283,56 @@ enum PersistenceChecks {
                             "finishing an already-closed session is a no-op")
         }
 
+        // --- The session records what the student set out to do -------------------
+        //
+        // `goalText`, `goalMet` and `safetyEngaged` have been on `StudySession`
+        // since the model was written, with doc comments describing behaviour
+        // that depended on them, and nothing ever wrote a single one.
+        do {
+            let context = ModelContext()
+            let safety = SafetyCoordinator()
+            let recorder = SessionRecorder(context: context, source: nil,
+                                           celebrations: CelebrationCenter(), safety: safety)
+
+            let goal = StudyGoal(target: .duration(minutes: 25), rawText: "25 minutes on chapter 4")
+            recorder.finish(mood: .focused, goal: goal, metGoal: true)
+
+            let sessions = (try? context.fetch(FetchDescriptor<StudySession>())) ?? []
+            run.expectEqual(sessions.count, 1, "the session is stored")
+            run.expectEqual(sessions.first?.goalText, "25 minutes on chapter 4",
+                            "the goal is recorded in the student's own words")
+            run.expectEqual(sessions.first?.goalMet, true, "a met goal is recorded as met")
+            run.expectEqual(sessions.first?.safetyEngaged, false,
+                            "a calm session records no safety event")
+        }
+
+        // An abandoned session must not record the goal as met.
+        do {
+            let context = ModelContext()
+            let recorder = SessionRecorder(context: context, source: nil,
+                                           celebrations: CelebrationCenter(),
+                                           safety: SafetyCoordinator())
+            recorder.finish(mood: .low, goal: StudyGoal(target: .duration(minutes: 25),
+                                                        rawText: "25 minutes"), metGoal: false)
+            let session = (try? context.fetch(FetchDescriptor<StudySession>()))?.first
+            run.expectEqual(session?.goalMet, false, "quitting early is not meeting the goal")
+            run.expectEqual(session?.goalText, "25 minutes",
+                            "the goal is still recorded — what they meant to do matters either way")
+        }
+
+        // A session where the crisis net engaged is flagged on the row itself.
+        do {
+            let context = ModelContext()
+            let safety = SafetyCoordinator()
+            let recorder = SessionRecorder(context: context, source: nil,
+                                           celebrations: CelebrationCenter(), safety: safety)
+            safety.check("i want to kill myself")
+            recorder.finish(mood: .low)
+            let session = (try? context.fetch(FetchDescriptor<StudySession>()))?.first
+            run.expectEqual(session?.safetyEngaged, true,
+                            "the row carries the flag its own doc comment depends on")
+        }
+
         // --- The crisis net suppresses everything ---------------------------------
         do {
             let context = ModelContext()
