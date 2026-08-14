@@ -70,6 +70,8 @@ ALLOWED = {
     "measureRoundTrip": "transport instrumentation, asserted in LatencyChecks",
     "resetUsage": "used by the checks to start from a clean ledger",
     "clearAll": "share-inbox teardown, asserted in ShareInboxChecks",
+    "speakingHistoryKeyCount": "how the reset checks count orphaned entries; the "
+                               "sweep is what ships, this is how it is proved",
 }
 
 FUNC = re.compile(
