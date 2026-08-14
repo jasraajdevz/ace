@@ -20,6 +20,7 @@ import SwiftData
 struct FlashcardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppState.self) private var appState
+    @Environment(PresenceCoordinator.self) private var presence
     @Environment(\.dismiss) private var dismiss
 
     let source: StudySource
@@ -199,6 +200,11 @@ struct FlashcardView: View {
         recorder?.recordFlashcard()
         recorder?.award(outcome.xp)
         try? modelContext.save()
+
+        // A card reviewed counts toward a "20 cards" goal, and gives the
+        // Guardian something to react to.
+        presence.recordProgress()
+        presence.evaluateGuardian(signals: appState.signals, mood: appState.mood)
 
         comment = outcome.comment
         flip = 0

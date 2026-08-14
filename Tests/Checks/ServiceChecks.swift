@@ -134,6 +134,95 @@ enum ServiceChecks {
         }
     }
 
+    // MARK: - Metering
+
+    /// Part 5's economics layer only means anything if something feeds it.
+    ///
+    /// `recordAudio` and `recordText` had no callers anywhere in the app, so
+    /// every session recorded zero usage: the ledger stayed empty, Settings
+    /// always showed no usage, and the free-tier cap could never bite because
+    /// there was nothing to count against it. 119 checks covering tiers, caps
+    /// and pricing all passed the entire time — they tested arithmetic on data
+    /// the app never produced.
+    static var metering: CheckSuite {
+        CheckSuite(name: "Live Mode usage is metered") { run in
+            guard let r = runAsync(timeout: 8, { await MeteringProbe.run() }) else {
+                run.expect(false, "metering probe timed out")
+                return
+            }
+
+            // The provider counts what it actually moved, both ways.
+            run.expectClose(r.outputSeconds, MeteringProbe.expectedOutputSeconds,
+                            tolerance: 0.005,
+                            "output audio should be counted from the bytes played")
+            run.expectClose(r.inputSeconds, MeteringProbe.expectedInputSeconds,
+                            tolerance: 0.005,
+                            "microphone audio should be counted on the way up")
+
+            // Draining is destructive on purpose — a second read must not bill
+            // the same seconds again.
+            run.expectClose(r.secondDrainInput, 0, tolerance: 0.0001,
+                            "draining twice must not double-bill input")
+            run.expectClose(r.secondDrainOutput, 0, tolerance: 0.0001,
+                            "draining twice must not double-bill output")
+
+            // And it reaches the ledger, which is the part that was missing.
+            run.expect(r.ledgerWasEmptyBefore, "a fresh ledger has no usage")
+            run.expectClose(r.voiceMinutesAfter, 10, tolerance: 0.01,
+                            "ten minutes of audio should read as ten minutes")
+            run.expect(r.costAfter > 0, "metered usage should carry a cost")
+
+            // Demo Mode is free and must stay uncounted.
+            run.expectClose(r.demoVoiceMinutes, 0, tolerance: 0.0001,
+                            "on-device sessions cost nothing and must not be metered")
+        }
+    }
+
+    // MARK: - Suppression is per-session
+
+    /// §10: nudge, never lock.
+    static var suppressionLifts: CheckSuite {
+        CheckSuite(name: "Suppression lifts on a new session") { run in
+            guard let r = runAsync({ await SuppressionProbe.run() }) else {
+                run.expect(false, "suppression probe timed out")
+                return
+            }
+
+            run.expect(r.suppressedAfterConcern,
+                       "a concern-level disclosure suppresses the game layer")
+            // The bug: `beginFreshSession` existed for this and was called by
+            // nothing, so one detection silenced rewards for the rest of the run.
+            run.expect(!r.suppressedAfterNewSession,
+                       "a session started later must not inherit the suppression")
+            run.expect(r.concernClearedAfterNewSession,
+                       "and the inline concern banner should not follow them into it")
+
+            // A full-screen crisis is different: it outranks everything, and a
+            // new session must not quietly lift it.
+            run.expect(r.stillSuppressedUnderCrisis,
+                       "starting a session must not lift a full-screen crisis")
+        }
+    }
+
+    // MARK: - Countable goals
+
+    /// "10 questions" has to be able to reach 10.
+    static var countableGoals: CheckSuite {
+        CheckSuite(name: "Countable goals can complete") { run in
+            guard let r = runAsync({ await GoalProgressProbe.run() }) else {
+                run.expect(false, "goal probe timed out")
+                return
+            }
+
+            run.expect(!r.completeAtStart, "a fresh goal is not already met")
+            run.expectClose(r.fractionAfterFive, 0.5, tolerance: 0.001,
+                            "five of ten questions is halfway")
+            run.expect(r.completeAfterTen, "ten of ten completes the goal")
+            run.expect(r.metGoalOnFinish,
+                       "finishing a completed count goal records it as met")
+        }
+    }
+
     // MARK: - Prosody easing
 
     /// §9: mirror, never clone. Delivery eases toward the mood target across
@@ -356,6 +445,145 @@ private enum ProviderProbe {
         await controller.removeKey()
         out.demoAfterKeyRemoved = controller.live == nil
         out.keyLeftBehind = secrets.hasKey
+
+        return out
+    }
+}
+
+@MainActor
+private enum MeteringProbe {
+
+    /// The mock yields `audioChunks` chunks of 960 bytes — 20ms each at 24kHz
+    /// PCM16, which is what the realtime API actually speaks.
+    static let expectedOutputSeconds = 3 * 0.02
+    static let micChunks = 5
+    static let expectedInputSeconds = Double(micChunks) * 0.02
+
+    struct Result: Sendable {
+        var inputSeconds = 0.0
+        var outputSeconds = 0.0
+        var secondDrainInput = -1.0
+        var secondDrainOutput = -1.0
+        var ledgerWasEmptyBefore = false
+        var voiceMinutesAfter = -1.0
+        var costAfter = -1.0
+        var demoVoiceMinutes = -1.0
+    }
+
+    static func run() async -> Result {
+        var out = Result()
+
+        let mock = MockRealtimeTransport(script: .healthy)
+        let provider = OpenAIRealtimeProvider(apiKey: "sk-test", transport: mock)
+        let sink = RecordingAudioSink()
+        provider.audioSink = sink
+        guard await provider.prewarm(config: RealtimeSessionConfig(
+            instructions: "test", voice: VoiceRoster.default.realtimeVoiceName)) else {
+            return out
+        }
+
+        // The student talks…
+        for _ in 0..<micChunks {
+            await provider.sendMicrophoneAudio(Data(repeating: 0, count: 960))
+        }
+
+        // …and Ace answers.
+        let stream = provider.tutorReply(
+            context: TutorContext(studentMessage: "what is photosynthesis?"))
+        do { for try await _ in stream {} } catch {}
+        try? await Task.sleep(for: .milliseconds(60))
+
+        let used = provider.drainAudioUsage()
+        out.inputSeconds = used.input
+        out.outputSeconds = used.output
+
+        let again = provider.drainAudioUsage()
+        out.secondDrainInput = again.input
+        out.secondDrainOutput = again.output
+        await provider.disconnect()
+
+        // The ledger half.
+        let store = StoreController()
+        store.resetUsage()
+        out.ledgerWasEmptyBefore = store.thisMonth.voiceMinutes == 0
+
+        store.beginSession(isLive: true)
+        store.recordAudio(inputSeconds: 300, outputSeconds: 300)
+        store.endSession()
+        out.voiceMinutesAfter = store.thisMonth.voiceMinutes
+        out.costAfter = store.thisMonth.cost
+
+        // Demo Mode costs nothing.
+        let demo = StoreController()
+        demo.resetUsage()
+        demo.beginSession(isLive: false)
+        demo.endSession()
+        out.demoVoiceMinutes = demo.thisMonth.voiceMinutes
+
+        return out
+    }
+}
+
+@MainActor
+private enum SuppressionProbe {
+
+    struct Result: Sendable {
+        var suppressedAfterConcern = false
+        var suppressedAfterNewSession = true
+        var concernClearedAfterNewSession = false
+        var stillSuppressedUnderCrisis = false
+    }
+
+    static func run() async -> Result {
+        var out = Result()
+
+        let appState = AppState()
+        appState.safety.check("i am a burden to everyone")
+        out.suppressedAfterConcern = appState.safety.isGamificationSuppressed
+
+        // Hours later, a brand-new study session.
+        appState.beginSession()
+        out.suppressedAfterNewSession = appState.safety.isGamificationSuppressed
+        out.concernClearedAfterNewSession = appState.safety.concernResponse == nil
+
+        // A full-screen crisis is not lifted by starting something else.
+        let crisis = AppState()
+        crisis.safety.check("i want to kill myself")
+        crisis.beginSession()
+        out.stillSuppressedUnderCrisis = crisis.safety.isGamificationSuppressed
+
+        return out
+    }
+}
+
+@MainActor
+private enum GoalProgressProbe {
+
+    struct Result: Sendable {
+        var completeAtStart = true
+        var fractionAfterFive = -1.0
+        var completeAfterTen = false
+        var metGoalOnFinish = false
+    }
+
+    static func run() async -> Result {
+        var out = Result()
+
+        let appState = AppState()
+        let presence = PresenceCoordinator()
+        let goal = StudyGoal(target: .count(10, unit: .questions), rawText: "10 questions")
+        presence.begin(goal: goal, appState: appState)
+
+        out.completeAtStart = presence.session.progress().isComplete
+
+        for _ in 0..<5 { presence.recordProgress() }
+        out.fractionAfterFive = presence.session.progress().fraction
+
+        for _ in 0..<5 { presence.recordProgress() }
+        out.completeAfterTen = presence.session.progress().isComplete
+
+        presence.finishSession()
+        out.metGoalOnFinish = presence.session.phase.metGoal
 
         return out
     }

@@ -27,6 +27,7 @@ import SwiftData
 struct TutorView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppState.self) private var appState
+    @Environment(PresenceCoordinator.self) private var presence
     @Environment(\.dismiss) private var dismiss
 
     let source: StudySource
@@ -287,6 +288,21 @@ struct TutorView: View {
         turns.append(TutorTurn(speaker: .student, text: message))
         Feedback.tap()
 
+        // Some things a student says deserve a person, not a hint. This runs
+        // after the crisis net and before the tutor, and takes over when it
+        // fires — answering "I'm exhausted" with a Socratic question is the
+        // wrong response to the actual message (§10).
+        //
+        // Nothing used to call this at all, so the whole comfort layer was
+        // unreachable: the responder, its phrase matching and the mute it sets
+        // were all tested and none of it ever ran.
+        if presence.checkComfort(message, studentName: appState.settings.name) {
+            if let comfort = presence.comfortMessage {
+                turns.append(TutorTurn(speaker: .ace, text: comfort))
+            }
+            return
+        }
+
         Task { await respond(to: message) }
     }
 
@@ -315,6 +331,7 @@ struct TutorView: View {
         // Stream the text in at reading pace while Ace says it, so the two
         // arrive together. Part 3 replaces this with the real token stream.
         isThinking = false
+        presence.evaluateGuardian(signals: appState.signals, mood: appState.mood)
         for phrase in PhraseSplitter.phrases(in: reply.text) {
             streamedText += (streamedText.isEmpty ? "" : " ") + phrase
             try? await Task.sleep(for: .milliseconds(90))

@@ -764,3 +764,57 @@ re-introduced and confirmed to fail the new suite.
 deleted: nothing read it, nothing set it, and iOS gives an app no way to request
 a system Focus regardless.
 
+## D51 — Presence is owned by the app, not by one screen
+
+`PresenceCoordinator` was `@State` inside `BodyDoubleView`. That put the
+body-double session, the goal, the Guardian, Do Not Disturb and the focus music
+inside a single screen, created and destroyed with it — and left the quiz,
+flashcard and tutor surfaces with no reference to any of it.
+
+The consequences were not subtle. `recordProgress` and `evaluateGuardian` had no
+reachable receiver, so a goal of "10 questions" could never advance past zero and
+the Guardian never saw a wrong answer. Both functions were fully written, fully
+tested and impossible to call.
+
+It now lives in `AceApp` and reaches the screens through the environment. A QA
+check fails the build if `PresenceCoordinator()` is constructed anywhere else,
+because the mistake is invisible once made — the code compiles and the screen
+that owns it works perfectly.
+
+## D52 — Uncalled functions are a build gate
+
+The companion to D47. Between them they encode the pattern behind nearly every
+bug found in this codebase: the code was right, and nothing ran it.
+
+`Tools/gen/find_uncalled.py` found that `recordAudio` and `recordText` had no
+callers, so every session metered zero usage and Part 5's economics — caps,
+entitlements, the paywall trigger — could not fire; that
+`SafetyCoordinator.beginFreshSession` was never called, so one concern-level
+detection suppressed rewards for the rest of the app run; that
+`startTransactionListener` was never started; and that `checkComfort` was never
+invoked, meaning the entire comfort layer was unreachable.
+
+Counting rule worth recording: an earlier version counted only `name(` and
+reported `animateIn` and `startFollowUp` as dead. Both are passed as function
+values — `onAppear(perform: animateIn)`, `onRedoMissed: startFollowUp`. It now
+counts every mention outside the declaration.
+
+## D53 — Metering is measured at the provider, not estimated
+
+`recordAudio` takes seconds, and the tempting source is an estimate from the
+reply text. `OpenAIRealtimeProvider` counts the PCM bytes it actually moves
+instead, because barge-in makes interrupted responses the common case rather
+than the rare one, and an estimate from text would over-bill every one of them.
+
+`drainAudioUsage()` clears the tally as it reads, so a second call cannot bill
+the same seconds twice. Demo Mode is never metered — it runs on-device and costs
+nothing, and a ledger that recorded it would make the usage screen lie.
+
+## D54 — MoodHeuristics.shouldOfferHelp and .shouldNudgeBack are gone
+
+Both were tested, neither was called, and `Guardian.evaluate` already answers the
+same question with its own escalation ladder and different thresholds. Two
+definitions of "is this student struggling" is a drift hazard where one of them
+is the one that ships. The eight assertions were retargeted at `Guardian` rather
+than deleted, so the intent survives against the code that runs.
+

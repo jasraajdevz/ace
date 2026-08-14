@@ -16,6 +16,10 @@ struct AceApp: App {
     /// The one `AppState` for the whole app. It starts on `MockAIProvider`, so
     /// the app is fully functional with no key, no account and no network (§5).
     @State private var appState = AppState()
+    /// Owned here so it outlives any one screen — see the note at `.environment`.
+    @State private var presence = PresenceCoordinator()
+    /// Held for the app's lifetime; StoreKit cancels the listener if it isn't.
+    @State private var transactionListener: Task<Void, Never>?
 
     /// The SwiftData stack.
     ///
@@ -47,6 +51,16 @@ struct AceApp: App {
         WindowGroup {
             RootView()
                 .environment(appState)
+                // Presence is app-scoped, not screen-scoped.
+                //
+                // It used to be `@State` inside `BodyDoubleView`, which meant the
+                // body-double session, the goal, the Guardian, Do Not Disturb and
+                // the focus music all existed only while that one screen was on
+                // top — and the quiz, flashcard and tutor screens had no way to
+                // reach any of it. Setting a goal of "10 questions" and then going
+                // to the quiz meant nothing counted, because `recordProgress` had
+                // no reachable receiver.
+                .environment(presence)
                 // Dark-only by design — see DECISIONS.md.
                 .preferredColorScheme(.dark)
                 .tint(Ink.accent)
@@ -55,6 +69,13 @@ struct AceApp: App {
                     // and the first haptic isn't late.
                     SoundCuePlayer.shared.prepare()
                     Haptic.prepare()
+
+                    // Renewals and revocations that happen outside the app.
+                    // The returned Task has to be held or it is cancelled
+                    // immediately on release.
+                    if transactionListener == nil {
+                        transactionListener = appState.store.startTransactionListener()
+                    }
                 }
         }
         .modelContainer(container)

@@ -203,31 +203,37 @@ enum TutorChecks {
             run.expect(!reading.rationale.isEmpty, "missing rationale")
         }
 
-        // --- Guardian thresholds (Part 4 relies on these) -------------------------
+        // --- Intervention thresholds --------------------------------------------
+        //
+        // These used to assert on `MoodHeuristics.shouldOfferHelp` and
+        // `.shouldNudgeBack`, which the app never called — `Guardian.evaluate`
+        // has its own escalation ladder and is what actually ships. Two
+        // definitions of "is this student struggling" is a drift hazard, so the
+        // unused pair is gone and the same intent is asserted against the one
+        // that runs.
+        //
         // Must NOT be paranoid: one wrong answer is not a crisis of confidence.
         var oneWrong = BehaviourSignals.none
         oneWrong.wrongStreak = 1
-        run.expect(!MoodHeuristics.shouldOfferHelp(signals: oneWrong),
-                   "one wrong answer must not trigger an intervention")
+        run.expectEqual(Guardian().evaluate(signals: oneWrong, mood: .unknown), .none,
+                        "one wrong answer must not trigger an intervention")
         var oneHint = BehaviourSignals.none
         oneHint.hintsTaken = 1
-        run.expect(!MoodHeuristics.shouldOfferHelp(signals: oneHint),
-                   "taking one hint is normal, not a struggle signal")
-        run.expect(!MoodHeuristics.shouldOfferHelp(signals: .none),
-                   "a fresh session must not trigger an intervention")
+        run.expectEqual(Guardian().evaluate(signals: oneHint, mood: .unknown), .none,
+                        "taking one hint is normal, not a struggle signal")
+        run.expectEqual(Guardian().evaluate(signals: .none, mood: .unknown), .none,
+                        "a fresh session must not trigger an intervention")
 
         // Must fire on genuine struggle.
-        run.expect(MoodHeuristics.shouldOfferHelp(signals: struggling),
+        run.expect(Guardian().evaluate(signals: struggling, mood: .unknown) != .none,
                    "3+ wrong in a row should offer help")
         var manyHints = BehaviourSignals.none
         manyHints.hintsTaken = 3
-        run.expect(MoodHeuristics.shouldOfferHelp(signals: manyHints), "3 hints should offer help")
-        var longPause = BehaviourSignals.none
-        longPause.lastResponseLatency = 90
-        run.expect(MoodHeuristics.shouldOfferHelp(signals: longPause), "a 90s pause should offer help")
+        run.expect(Guardian().evaluate(signals: manyHints, mood: .unknown) != .none,
+                   "3 hints should offer help")
 
-        // Return nudge.
-        run.expect(MoodHeuristics.shouldNudgeBack(signals: gone), "long idle should nudge back")
-        run.expect(!MoodHeuristics.shouldNudgeBack(signals: .none), "a fresh session must not nudge")
+        // And on absence — the signal that was dead until the tick fed it.
+        run.expect(Guardian().evaluate(signals: gone, mood: .unknown) != .none,
+                   "long idle should nudge back")
     }
 }

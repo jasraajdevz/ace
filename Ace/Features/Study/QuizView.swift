@@ -22,6 +22,7 @@ import SwiftData
 struct QuizView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppState.self) private var appState
+    @Environment(PresenceCoordinator.self) private var presence
     @Environment(\.dismiss) private var dismiss
 
     let source: StudySource
@@ -250,6 +251,12 @@ struct QuizView: View {
 
         speak(outcome.reply.text)
         refreshMood()
+
+        // A question answered is progress toward a countable goal, and the
+        // moment the Guardian most needs to look. Neither used to happen here:
+        // the coordinator lived inside another screen entirely.
+        presence.recordProgress()
+        presence.evaluateGuardian(signals: runner.signals, mood: appState.mood)
     }
 
     private func takeHint() {
@@ -259,6 +266,7 @@ struct QuizView: View {
         aceReply = nil
         speak(hint)
         refreshMood()
+        presence.evaluateGuardian(signals: runner.signals, mood: appState.mood)
     }
 
     private func reveal() {

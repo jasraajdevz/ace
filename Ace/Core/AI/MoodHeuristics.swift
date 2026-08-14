@@ -116,21 +116,4 @@ enum MoodHeuristics {
         return MoodReading(mood: .neutral, confidence: 0.3, rationale: "no strong signal")
     }
 
-    /// Whether Ace should offer help unprompted.
-    ///
-    /// Part 4's Guardian uses this. It is deliberately conservative: the brief
-    /// says smart thresholds, not paranoid — an app that asks "are you okay?"
-    /// after every wrong answer is exhausting and gets ignored.
-    static func shouldOfferHelp(signals: BehaviourSignals) -> Bool {
-        if signals.wrongStreak >= 3 { return true }
-        if signals.hintsTaken >= 3 { return true }
-        if signals.lastResponseLatency > 60 { return true }
-        if signals.wrongStreak >= 2 && signals.lastResponseLatency > stuckLatency { return true }
-        return false
-    }
-
-    /// Whether the student appears to have wandered off.
-    static func shouldNudgeBack(signals: BehaviourSignals) -> Bool {
-        signals.idleSeconds > idleThreshold || signals.appExits >= 1
-    }
 }

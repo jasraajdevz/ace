@@ -258,6 +258,32 @@ else
     printf "%s\n" "$DEAD" | sed 's/^/      /'
 fi
 
+# ------------------------------------------------------- app-scoped presence
+#
+# PresenceCoordinator was once `@State` inside BodyDoubleView, which put the
+# body-double session, the goal, the Guardian, Do Not Disturb and the music
+# inside one screen — and left the study surfaces with no way to reach any of
+# it. Owning it anywhere but the app reintroduces that.
+
+OWNERS=$(grep -rln "PresenceCoordinator()" Ace --include='*.swift' || true)
+if [ "$OWNERS" = "Ace/AceApp.swift" ] || [ -z "$OWNERS" ]; then
+    pass "the presence coordinator is owned by the app, not a screen"
+else
+    fail "PresenceCoordinator is constructed outside AceApp: $OWNERS"
+fi
+
+# ------------------------------------------------------------ uncalled code
+#
+# The sibling check. Well-written code that nothing invokes has produced more
+# bugs in this project than code that is wrong — see the script's header.
+
+if UNCALLED=$(python3 Tools/gen/find_uncalled.py 2>&1); then
+    pass "no unaccounted uncalled functions"
+else
+    fail "a function is declared and never called"
+    printf "%s\n" "$UNCALLED" | sed 's/^/      /'
+fi
+
 # ---------------------------------------------------------------- result
 
 printf "\n"

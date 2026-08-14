@@ -25,7 +25,7 @@ struct BodyDoubleView: View {
 
     let source: StudySource?
 
-    @State private var presence = PresenceCoordinator()
+    @Environment(PresenceCoordinator.self) private var presence
     @State private var recorder: SessionRecorder?
     @State private var celebrations = CelebrationCenter()
     @State private var goalDraft = ""

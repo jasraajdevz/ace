@@ -225,6 +225,19 @@ final class AppState {
     }
 
     func endVoiceSession() async {
+        // Bill what Live Mode actually moved, before the session closes.
+        //
+        // Nothing used to call `recordAudio` or `recordText` at all, so every
+        // session recorded zero usage: the ledger stayed empty, the Usage
+        // section in Settings always read nothing, and the free-tier cap could
+        // never bite because there was never anything to count. Part 5's whole
+        // economics layer was inert despite passing 119 checks.
+        if let live = providers.live {
+            let used = live.drainAudioUsage()
+            if used.input > 0 || used.output > 0 {
+                store.recordAudio(inputSeconds: used.input, outputSeconds: used.output)
+            }
+        }
         await providers.endSession()
         store.endSession()
     }
@@ -239,6 +252,11 @@ final class AppState {
         mood = .unknown
         prosody = persona.baseProsody
         celebrationsMuted = false
+        // §10: nudge, never lock. A concern detected earlier must not follow the
+        // student into a session they started later — `beginFreshSession` exists
+        // for exactly this and was never called, so one detection suppressed
+        // every reward for the rest of the app run.
+        safety.beginFreshSession()
     }
 }
 
@@ -312,7 +330,12 @@ final class SafetyCoordinator {
     }
 
     /// Clear suppression. Called when a *new* session starts, never mid-session.
+    ///
+    /// A full-screen crisis response outranks this: while one is up the app must
+    /// show nothing else, so starting a session cannot quietly re-enable XP
+    /// underneath it.
     func beginFreshSession() {
+        guard crisisResponse == nil else { return }
         isGamificationSuppressed = false
         concernResponse = nil
     }

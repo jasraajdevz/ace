@@ -145,6 +145,9 @@ enum AllChecks {
             ServiceChecks.comfortMute,
             ServiceChecks.providerSwitching,
             ServiceChecks.moodEasing,
+            ServiceChecks.metering,
+            ServiceChecks.suppressionLifts,
+            ServiceChecks.countableGoals,
         ]
     }
 }

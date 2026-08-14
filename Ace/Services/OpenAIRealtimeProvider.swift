@@ -132,6 +132,7 @@ final class OpenAIRealtimeProvider: AIProvider, @unchecked Sendable {
                         await self?.audioSink?.beginPlayback()
                     }
                     if let data = Data(base64Encoded: base64) {
+                        state.countOutputAudio(bytes: data.count)
                         await self?.audioSink?.enqueue(data)
                     }
 
@@ -218,7 +219,16 @@ final class OpenAIRealtimeProvider: AIProvider, @unchecked Sendable {
     /// Feed a chunk of microphone audio upstream.
     func sendMicrophoneAudio(_ pcm: Data) async {
         guard state.isConnected else { return }
+        state.countInputAudio(bytes: pcm.count)
         try? await transport.send(.appendAudio(pcm.base64EncodedString()))
+    }
+
+    /// Audio moved this session, for metering. Reading it clears the tally so a
+    /// second read can't bill the same seconds twice.
+    func drainAudioUsage() -> (input: Double, output: Double) {
+        let seconds = state.audioSeconds
+        state.resetAudioCounts()
+        return seconds
     }
 
     // MARK: - AIProvider
@@ -371,6 +381,8 @@ final class RealtimeState: @unchecked Sendable {
     private var _ttfaStart: Date?
     private var _ttfaRunning = false
     private var _rateLimitResetSeconds: Double?
+    private var _inputAudioBytes = 0
+    private var _outputAudioBytes = 0
 
     var eventLoop: Task<Void, Never>?
     var lastConfig: RealtimeSessionConfig?
@@ -421,6 +433,38 @@ final class RealtimeState: @unchecked Sendable {
     var bargeIn: BargeInTracker {
         lock.lock(); defer { lock.unlock() }
         return _bargeIn
+    }
+
+    // MARK: Metering
+
+    /// Bytes of PCM16 moved each way this session.
+    ///
+    /// The provider counts them because it is the only thing in the app that
+    /// costs money, so it is the only honest place to measure. Estimating from
+    /// the text instead would drift the moment a response was interrupted —
+    /// and barge-in makes that the common case, not the rare one.
+    func countInputAudio(bytes: Int) {
+        lock.lock(); defer { lock.unlock() }
+        _inputAudioBytes += bytes
+    }
+
+    func countOutputAudio(bytes: Int) {
+        lock.lock(); defer { lock.unlock() }
+        _outputAudioBytes += bytes
+    }
+
+    /// Seconds of audio each way, from the byte counts.
+    var audioSeconds: (input: Double, output: Double) {
+        lock.lock(); defer { lock.unlock() }
+        let perSecond = RealtimeAudio.sampleRate * 2   // PCM16 mono
+        return (Double(_inputAudioBytes) / perSecond,
+                Double(_outputAudioBytes) / perSecond)
+    }
+
+    func resetAudioCounts() {
+        lock.lock(); defer { lock.unlock() }
+        _inputAudioBytes = 0
+        _outputAudioBytes = 0
     }
 
     func recordHandshake(_ seconds: TimeInterval) {
