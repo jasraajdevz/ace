@@ -214,10 +214,29 @@ else
     pass "no API keys in the source or config"
 fi
 
-if grep -q "KeychainService" Ace/Services/ProviderController.swift; then
-    pass "the key is read from the Keychain, not UserDefaults"
+# The key now reaches the Keychain through the `SecretStore` seam, so following
+# it takes two steps: the production store must wrap `KeychainService`, and the
+# controller must default to that store. Checking only the first would pass with
+# the app wired to the in-memory test store.
+if grep -q "KeychainService.load()" Ace/Services/KeychainService.swift; then
+    pass "the production secret store reads the Keychain"
 else
-    fail "the key may not be going through the Keychain"
+    fail "KeychainSecretStore may not be going through the Keychain"
+fi
+
+if grep -q "secrets: SecretStore = KeychainSecretStore()" Ace/Services/ProviderController.swift; then
+    pass "the app defaults to the Keychain-backed store"
+else
+    fail "ProviderController may not default to the Keychain store"
+fi
+
+# The in-memory store exists for the harness. If it is ever named in app code,
+# a build could ship with the key held in RAM and never persisted — or worse,
+# a test double in the shipping path.
+if grep -rn "InMemorySecretStore" $APP_SWIFT | grep -v "Ace/Services/KeychainService.swift" >/dev/null 2>&1; then
+    fail "the in-memory secret store is referenced by app code"
+else
+    pass "the in-memory secret store is test-only"
 fi
 
 if grep -rn "UserDefaults.*apiKey\|UserDefaults.*openai" $APP_SWIFT >/dev/null 2>&1; then

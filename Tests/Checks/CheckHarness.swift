@@ -77,6 +77,30 @@ struct CheckSuite {
     }
 }
 
+/// Run an async body from a synchronous check and hand back its result.
+///
+/// Pumps the run loop rather than blocking on a semaphore. A semaphore would
+/// park the main thread, and anything that hops to `@MainActor` inside `body`
+/// would then wait forever on a thread that is itself waiting — the harness
+/// would deadlock rather than fail, which is the worst way for a test to break.
+///
+/// Returns nil if `body` didn't finish inside `timeout`.
+func runAsync<T>(timeout: TimeInterval = 5, _ body: @escaping @Sendable () async -> T) -> T? {
+    nonisolated(unsafe) var result: T?
+    nonisolated(unsafe) var finished = false
+
+    Task {
+        result = await body()
+        finished = true
+    }
+
+    let deadline = Date().addingTimeInterval(timeout)
+    while !finished, Date() < deadline {
+        RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.005))
+    }
+    return finished ? result : nil
+}
+
 /// Everything the verifier executes. Add new suites here.
 enum AllChecks {
     static var suites: [CheckSuite] {
@@ -117,6 +141,9 @@ enum AllChecks {
             ShareInboxChecks.all,
             DemoDeckChecks.all,
             DesignSystemChecks.all,
+            ServiceChecks.comfortMute,
+            ServiceChecks.providerSwitching,
+            ServiceChecks.moodEasing,
         ]
     }
 }

@@ -298,7 +298,8 @@ struct BodyDoubleView: View {
 
         recorder = SessionRecorder(context: modelContext, source: source,
                                    celebrations: celebrations, safety: appState.safety)
-        celebrations.isSuppressed = appState.safety.isGamificationSuppressed
+        celebrations.isSuppressed = appState.isGamificationQuiet
+        appState.activeCelebrations = celebrations
         appState.beginSession()
         isGoalFocused = false
         presence.begin(goal: goal, appState: appState)

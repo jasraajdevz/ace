@@ -17,6 +17,49 @@
 import Foundation
 import Security
 
+// MARK: - The seam
+
+/// Where the key lives.
+///
+/// A protocol rather than a bare `enum` so the key lifecycle — add, replace,
+/// remove, and what the provider does in response — can be exercised in tests
+/// without touching the real login keychain, which in a headless process either
+/// fails or prompts.
+protocol SecretStore: Sendable {
+    @discardableResult func store(_ key: String) -> Bool
+    func load() -> String?
+    @discardableResult func delete() -> Bool
+}
+
+extension SecretStore {
+    var hasKey: Bool { load() != nil }
+}
+
+/// The production store.
+struct KeychainSecretStore: SecretStore {
+    func store(_ key: String) -> Bool { KeychainService.store(key) }
+    func load() -> String? { KeychainService.load() }
+    func delete() -> Bool { KeychainService.delete() }
+}
+
+/// An in-memory store, for tests. Never used by the app.
+final class InMemorySecretStore: SecretStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: String?
+
+    init(seeded: String? = nil) { value = seeded }
+
+    func store(_ key: String) -> Bool {
+        lock.withLock { value = key.trimmed }
+        return true
+    }
+    func load() -> String? { lock.withLock { value } }
+    func delete() -> Bool {
+        lock.withLock { value = nil }
+        return true
+    }
+}
+
 /// Reads and writes the API key.
 enum KeychainService {
 

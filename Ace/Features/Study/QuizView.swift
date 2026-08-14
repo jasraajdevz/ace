@@ -233,7 +233,8 @@ struct QuizView: View {
         guard recorder == nil else { return }
         recorder = SessionRecorder(context: modelContext, source: source,
                                    celebrations: celebrations, safety: appState.safety)
-        celebrations.isSuppressed = appState.safety.isGamificationSuppressed
+        celebrations.isSuppressed = appState.isGamificationQuiet
+        appState.activeCelebrations = celebrations
         appState.beginSession()
     }
 

@@ -20,29 +20,6 @@
 
 import Foundation
 
-/// The check harness is synchronous; these behaviours are not. This bridges the
-/// two by running an async block and pumping the run loop until it finishes.
-///
-/// It must be a run loop rather than a semaphore. Blocking the main thread means
-/// the main dispatch queue is never serviced, so anything that hops to
-/// `@MainActor` — `SpeechService`, `Feedback`, any of the UI-facing services —
-/// waits forever and the check times out looking like a product bug.
-private func runAsync<T>(timeout: TimeInterval = 5, _ body: @escaping @Sendable () async -> T) -> T? {
-    nonisolated(unsafe) var result: T?
-    nonisolated(unsafe) var finished = false
-
-    Task {
-        result = await body()
-        finished = true
-    }
-
-    let deadline = Date().addingTimeInterval(timeout)
-    while !finished, Date() < deadline {
-        RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.005))
-    }
-    return finished ? result : nil
-}
-
 enum RealtimeIntegrationChecks {
 
     private static func makeConfig() -> RealtimeSessionConfig {

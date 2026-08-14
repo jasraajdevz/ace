@@ -29,7 +29,7 @@ struct QuizResultsView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The safety net mutes every number on this screen (§10).
-    private var isSuppressed: Bool { appState.safety.isGamificationSuppressed }
+    private var isSuppressed: Bool { appState.isGamificationQuiet }
 
     var body: some View {
         ScrollView {

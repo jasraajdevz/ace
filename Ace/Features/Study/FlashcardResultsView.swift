@@ -42,7 +42,7 @@ struct FlashcardResultsView: View {
                         .foregroundStyle(Ink.textSecondary)
                 }
 
-                if !appState.safety.isGamificationSuppressed {
+                if !appState.isGamificationQuiet {
                     AceCard {
                         HStack {
                             AceStat(value: "\(summary.easy)", label: "easy",

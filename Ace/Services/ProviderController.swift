@@ -55,6 +55,15 @@ final class ProviderController {
 
     private let demo = MockAIProvider()
     private let player = RealtimeAudioPlayer()
+    private let secrets: SecretStore
+
+    /// What the live provider was built with — `model|key`. Compared on every
+    /// refresh so changing either actually takes effect.
+    ///
+    /// Without this, `refresh()` only ever created a provider when there wasn't
+    /// one, so switching model in Settings or replacing the key silently kept
+    /// talking to the old one until the app was restarted.
+    private var liveSignature: String?
 
     var preference: ProviderPreference {
         didSet {
@@ -66,7 +75,17 @@ final class ProviderController {
     /// Which realtime model to use. Overridable because model names change
     /// faster than app releases.
     var model: String {
-        didSet { UserDefaults.standard.set(model, forKey: Self.modelKey) }
+        didSet {
+            UserDefaults.standard.set(model, forKey: Self.modelKey)
+            // A model change must actually reach the provider.
+            Task { await refresh() }
+        }
+    }
+
+    /// The model the live provider is currently running — nil when on Demo.
+    /// Surfaced so a test can prove a Settings change reached the provider.
+    var liveModel: String? {
+        liveSignature.flatMap { $0.split(separator: "|").first.map(String.init) }
     }
 
     /// True when a key is in the Keychain.
@@ -81,7 +100,8 @@ final class ProviderController {
     /// Set when Live Mode gave up and handed back to Demo. Surfaced once, warmly.
     private(set) var fallbackNotice: String?
 
-    init() {
+    init(secrets: SecretStore = KeychainSecretStore()) {
+        self.secrets = secrets
         self.current = demo
         self.preference = UserDefaults.standard.string(forKey: Self.preferenceKey)
             .flatMap(ProviderPreference.init(rawValue:)) ?? .preferLive
@@ -92,7 +112,7 @@ final class ProviderController {
     // MARK: - The key
 
     private func loadKeyState() {
-        if let key = KeychainService.load() {
+        if let key = secrets.load() {
             hasKey = true
             keyFingerprint = APIKeyFormat.fingerprint(key)
         } else {
@@ -108,7 +128,7 @@ final class ProviderController {
         guard validation.isUsable else {
             return validation.message ?? "That doesn't look like a key."
         }
-        guard KeychainService.store(raw) else {
+        guard secrets.store(raw) else {
             return "Couldn't save that to the Keychain."
         }
         loadKeyState()
@@ -118,7 +138,7 @@ final class ProviderController {
     }
 
     func removeKey() async {
-        KeychainService.delete()
+        secrets.delete()
         loadKeyState()
         lastTestResult = nil
         await refresh()
@@ -134,21 +154,28 @@ final class ProviderController {
             if live != nil {
                 await live?.disconnect()
                 live = nil
+                liveSignature = nil
             }
             current = demo
             return
         }
 
-        guard let key = KeychainService.load() else {
+        guard let key = secrets.load() else {
             current = demo
             return
         }
 
-        // Reuse the existing live provider unless the model changed.
-        if live == nil {
+        // Rebuild whenever the key or the model changes. Comparing a signature
+        // rather than checking `live == nil` is the difference between a
+        // Settings change taking effect and silently doing nothing until the
+        // next launch.
+        let signature = "\(model)|\(key)"
+        if live == nil || liveSignature != signature {
+            await live?.disconnect()
             let provider = OpenAIRealtimeProvider(apiKey: key, model: model)
             provider.audioSink = player
             live = provider
+            liveSignature = signature
         }
         current = live ?? demo
     }
@@ -229,7 +256,7 @@ final class ProviderController {
         isTesting = true
         defer { isTesting = false }
 
-        guard let key = KeychainService.load() else {
+        guard let key = secrets.load() else {
             lastTestResult = .failed("No key saved yet.")
             return
         }

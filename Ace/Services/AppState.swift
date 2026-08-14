@@ -64,7 +64,39 @@ final class AppState {
     /// Set by the comfort responder: quiet the game layer without the full
     /// crisis suppression. Somebody who just said they're exhausted does not
     /// need an XP toast (§10).
-    var celebrationsMuted = false
+    ///
+    /// Note what this does *not* do: it never stops progress being recorded.
+    /// The crisis net suppresses earning as well as showing, but admitting to
+    /// being tired is not a reason to lose a streak — that would punish honesty,
+    /// which is the opposite of the point. XP still accrues; it just does so
+    /// silently.
+    var celebrationsMuted = false {
+        didSet {
+            guard celebrationsMuted != oldValue else { return }
+            activeCelebrations?.isSuppressed = isGamificationQuiet
+            // Clear anything already on screen. If a toast was mid-flight when
+            // they said they were done, letting it finish is the wrong answer.
+            if celebrationsMuted { activeCelebrations?.silence() }
+        }
+    }
+
+    /// The celebration center for the session in progress.
+    ///
+    /// Registered by the study screens so a mute decided *mid-session* still
+    /// lands. Setting `isSuppressed` once when the screen appears — which is all
+    /// that used to happen — misses the comfort moment entirely, because comfort
+    /// is triggered by something the student says while studying.
+    weak var activeCelebrations: CelebrationCenter?
+
+    /// True when the game layer must stay quiet: the crisis net engaged, or the
+    /// comfort responder judged this a bad moment for confetti.
+    ///
+    /// Every display-side gate reads this rather than `safety` alone. There were
+    /// once fourteen call sites checking crisis suppression and none checking
+    /// the comfort mute, which is how a mute that nothing honoured survived.
+    var isGamificationQuiet: Bool {
+        safety.isGamificationSuppressed || celebrationsMuted
+    }
 
     /// Ducks the focus music under Ace's voice. Wired by `PresenceCoordinator`
     /// so neither the music nor the voice has to know about the other.
@@ -163,11 +195,21 @@ final class AppState {
                     sourceText: String = "",
                     studentNote: String = "") async {
         let reading = await provider.readEmotion(audio: nil, text: text, signals: signals)
-        guard reading != mood else { return }
+        let changed = reading != mood
         mood = reading
+
+        // Ease on *every* read, not only when the label changes.
+        //
+        // `ProsodyMatcher.next` deliberately moves partway toward the target so
+        // delivery slides rather than snaps (§9) — which means it has to be
+        // called repeatedly to arrive. Returning early on an unchanged reading
+        // meant it ran once per mood *change* and then froze roughly halfway
+        // there, so voice matching was permanently weaker than designed.
         prosody = ProsodyMatcher.next(current: prosody, base: persona.baseProsody, reading: reading)
 
-        if reading.isActionable {
+        // Re-sending the session config, on the other hand, only makes sense
+        // when something actually changed — that's a network round trip.
+        if changed, reading.isActionable {
             await providers.adapt(to: reading, settings: settings, subject: subject,
                                   sourceText: sourceText, studentNote: studentNote)
         }
