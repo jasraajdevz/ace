@@ -50,6 +50,7 @@ struct HomeView: View {
                             .transition(.opacity.combined(with: .move(edge: .top)))
                         }
 
+                        reviewDueCard
                         captureCallToAction
                         studyTogetherCard
                         materialSection
@@ -127,6 +128,72 @@ struct HomeView: View {
     }
 
     // MARK: - Sections
+
+    /// Every card, across every source, as scheduling entries.
+    private var reviewEntries: [ReviewEntry] {
+        sources.flatMap { source in
+            source.flashcards.map {
+                ReviewEntry(id: $0.id, sourceID: source.id,
+                            sourceTitle: source.title, state: $0.reviewState)
+            }
+        }
+    }
+
+    /// What is due, across everything.
+    ///
+    /// Ace has computed a due date for every card since Part 2 and read it in
+    /// exactly one place — a count buried inside a single source's detail
+    /// screen. The student had to remember which of their material had work
+    /// waiting and go looking for it, which is not a schedule, it is a filing
+    /// system.
+    @ViewBuilder private var reviewDueCard: some View {
+        let groups = ReviewQueue.groups(from: reviewEntries)
+        if !groups.isEmpty, let line = ReviewQueue.summary(from: reviewEntries) {
+            AceCard(fill: Ink.surfaceRaised) {
+                VStack(alignment: .leading, spacing: Space.m) {
+                    HStack(spacing: Space.s) {
+                        Image(systemName: "arrow.trianglehead.clockwise")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Ink.accent)
+                        Text("Due now")
+                            .font(Typeface.caption)
+                            .foregroundStyle(Ink.textTertiary)
+                            .textCase(.uppercase)
+                    }
+                    Text(line)
+                        .font(Typeface.bodyEmphasis)
+                        .foregroundStyle(Ink.textPrimary)
+
+                    // Named, so it is a decision rather than a pile.
+                    VStack(spacing: Space.s) {
+                        ForEach(groups.prefix(3)) { group in
+                            Button {
+                                Feedback.tap()
+                                navigationPath.append(group.id)
+                            } label: {
+                                HStack {
+                                    Text(group.title)
+                                        .font(Typeface.callout)
+                                        .foregroundStyle(Ink.textSecondary)
+                                        .lineLimit(1)
+                                    Spacer(minLength: Space.s)
+                                    Text("\(group.dueCount)")
+                                        .font(Typeface.numeric(.footnote))
+                                        .foregroundStyle(Ink.accent)
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundStyle(Ink.textTertiary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(Text("\(group.title), \(group.dueCount) cards due"))
+                        }
+                    }
+                }
+            }
+            .transition(.opacity)
+        }
+    }
 
     private var greeting: some View {
         VStack(alignment: .leading, spacing: Space.xs) {

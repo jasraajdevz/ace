@@ -152,6 +152,8 @@ enum AllChecks {
             ProfileApplyChecks.all,
             ResetChecks.all,
             ShareOutcomeChecks.all,
+            ReviewQueueChecks.all,
+            ReminderChecks.all,
             ServiceChecks.comfortMute,
             ServiceChecks.providerSwitching,
             ServiceChecks.moodEasing,

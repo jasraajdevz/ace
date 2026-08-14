@@ -895,3 +895,231 @@ enum ShareOutcomeChecks {
         run.expect(!outcome(0, failed: 2).didImportAnything, "none arrived")
     }
 }
+
+// MARK: - What is due, and being told about it
+
+/// Ace has had a real SM-2 scheduler since Part 2 and it reached nobody.
+///
+/// `ReviewState` carries an ease factor, an interval and a `dueDate`, all
+/// computed correctly — and `dueDate` was read in exactly one place: a count
+/// inside a single source's detail screen. There was no "what's due today"
+/// anywhere, and not one call to `UNUserNotificationCenter` in the whole
+/// project. Spaced repetition that never tells you it is time is a spreadsheet.
+enum ReviewQueueChecks {
+
+    private static func entry(_ title: String, dueDaysAgo: Double?,
+                              isNew: Bool = false, now: Date) -> ReviewEntry {
+        var state = ReviewState.new
+        if !isNew {
+            state.repetitions = 2
+            state.lastReviewed = now
+            state.dueDate = now.addingTimeInterval(-(dueDaysAgo ?? 0) * 86_400)
+        }
+        return ReviewEntry(id: UUID(), sourceID: UUID(uuidString:
+            "00000000-0000-0000-0000-\(String(format: "%012d", abs(title.hashValue % 1_000_000)))")
+            ?? UUID(), sourceTitle: title, state: state)
+    }
+
+    static let all = CheckSuite(name: "What's due today") { run in
+        let now = Date(timeIntervalSince1970: 1_780_000_000)
+        let day = 86_400.0
+
+        // Overdue by 5 days, due today, due tomorrow, and never studied.
+        var overdue = ReviewState.new
+        overdue.repetitions = 3; overdue.lastReviewed = now
+        overdue.dueDate = now.addingTimeInterval(-5 * day)
+        var dueToday = ReviewState.new
+        dueToday.repetitions = 1; dueToday.lastReviewed = now
+        dueToday.dueDate = now.addingTimeInterval(-60)
+        var later = ReviewState.new
+        later.repetitions = 4; later.lastReviewed = now
+        later.dueDate = now.addingTimeInterval(3 * day)
+
+        let bio = UUID(), maths = UUID()
+        let entries = [
+            ReviewEntry(id: UUID(), sourceID: bio, sourceTitle: "Biology", state: overdue),
+            ReviewEntry(id: UUID(), sourceID: bio, sourceTitle: "Biology", state: dueToday),
+            ReviewEntry(id: UUID(), sourceID: maths, sourceTitle: "Maths", state: dueToday),
+            ReviewEntry(id: UUID(), sourceID: maths, sourceTitle: "Maths", state: later),
+            ReviewEntry(id: UUID(), sourceID: bio, sourceTitle: "Biology", state: .new),
+        ]
+
+        // --- What is due -----------------------------------------------------------
+        let due = ReviewQueue.due(from: entries, now: now)
+        run.expectEqual(due.count, 3, "three cards are due")
+        run.expectEqual(due.first?.state.dueDate, overdue.dueDate,
+                        "the most overdue card comes first — it is the one closest "
+                        + "to being forgotten, which is the whole premise")
+        run.expect(!due.contains { $0.state.isNew },
+                   "a card never studied cannot be forgotten, so it is not 'due'")
+
+        run.expectEqual(ReviewQueue.fresh(from: entries).count, 1, "one card is new")
+        run.expectEqual(ReviewQueue.nextDue(from: entries, now: now), later.dueDate,
+                        "the next wake-up is the soonest not-yet-due card")
+        run.expectEqual(ReviewQueue.daysOverdue(from: entries, now: now), 5,
+                        "five days behind on the oldest")
+
+        // --- Grouped by source -----------------------------------------------------
+        let groups = ReviewQueue.groups(from: entries, now: now)
+        run.expectEqual(groups.count, 2, "two sources have work waiting")
+        run.expectEqual(groups.first?.title, "Biology", "the biggest group leads")
+        run.expectEqual(groups.first?.dueCount, 2, "Biology has two due")
+        run.expectEqual(groups.last?.dueCount, 1, "Maths has one")
+        run.expect(groups.allSatisfy { $0.dueCount > 0 },
+                   "a source with nothing due is not listed at all")
+
+        // Ordering must be stable, not however the dictionary hashed today.
+        for _ in 0..<12 {
+            run.expectEqual(ReviewQueue.groups(from: entries, now: now).map(\.title),
+                            ["Biology", "Maths"], "group order is deterministic")
+        }
+
+        // --- Nothing due ------------------------------------------------------------
+        let quiet = [ReviewEntry(id: UUID(), sourceID: bio, sourceTitle: "Biology", state: later)]
+        run.expect(ReviewQueue.due(from: quiet, now: now).isEmpty, "nothing due yet")
+        run.expect(ReviewQueue.summary(from: quiet, now: now) == nil,
+                   "and nothing to say about it")
+        run.expectEqual(ReviewQueue.daysOverdue(from: quiet, now: now), 0, "not behind")
+
+        // --- The wording never scolds ----------------------------------------------
+        let summary = ReviewQueue.summary(from: entries, now: now) ?? ""
+        run.expect(summary.contains("3 cards"), "says how much: “\(summary)”")
+        for word in ["behind", "!", "don't", "lose", "losing", "missed", "overdue", "failing"] {
+            run.expect(!summary.lowercased().contains(word),
+                       "review copy must invite, never scold: “\(summary)”")
+        }
+
+        // A fortnight away must not produce a number to feel bad about.
+        var ancient = ReviewState.new
+        ancient.repetitions = 2; ancient.lastReviewed = now
+        ancient.dueDate = now.addingTimeInterval(-23 * day)
+        let lapsed = [ReviewEntry(id: UUID(), sourceID: bio, sourceTitle: "Biology", state: ancient)]
+        let lapsedLine = ReviewQueue.summary(from: lapsed, now: now) ?? ""
+        run.expect(!lapsedLine.contains("23"),
+                   "23 days away is not a number to put in front of someone: “\(lapsedLine)”")
+        run.expect(lapsedLine.contains("1 card"), "but still says what is waiting")
+    }
+}
+
+// MARK: - Reminders
+
+/// Ace had no notifications of any kind — not one call to
+/// `UNUserNotificationCenter` in the project — while computing a due date for
+/// every card it had ever made. Reviewing "just before you'd forget" depended
+/// entirely on the student happening to open the app on the right day.
+///
+/// The rules matter more than the plumbing, so they are what these check.
+enum ReminderChecks {
+
+    private final class FakeScheduler: ReminderScheduler, @unchecked Sendable {
+        private let lock = NSLock()
+        private var scheduled: [(id: String, title: String, body: String, at: Date)] = []
+        private(set) var cancelCount = 0
+
+        var all: [(id: String, title: String, body: String, at: Date)] {
+            lock.withLock { scheduled }
+        }
+        func requestAuthorization() async -> Bool { true }
+        func cancelAll() async {
+            lock.withLock { scheduled.removeAll(); cancelCount += 1 }
+        }
+        func schedule(id: String, title: String, body: String, at date: Date) async {
+            lock.withLock { scheduled.append((id, title, body, date)) }
+        }
+    }
+
+    static let all = CheckSuite(name: "Study reminders") { run in
+        var calendar = Calendar(identifier: .gregorian)
+        calendar = calendar
+        let day = 86_400.0
+        // 09:00, so "later today at 17:00" is still ahead.
+        let morning = Date(timeIntervalSince1970: 1_780_034_400)
+
+        func card(dueIn days: Double, isNew: Bool = false) -> ReviewEntry {
+            var state = ReviewState.new
+            if !isNew {
+                state.repetitions = 2
+                state.lastReviewed = morning
+                state.dueDate = morning.addingTimeInterval(days * day)
+            }
+            return ReviewEntry(id: UUID(), sourceID: UUID(),
+                               sourceTitle: "Biology", state: state)
+        }
+
+        // --- Something is waiting --------------------------------------------------
+        let waiting = [card(dueIn: -1), card(dueIn: -0.2)]
+        let plan = StudyReminders.plan(entries: waiting, now: morning, calendar: calendar)
+        run.expect(plan != nil, "work waiting produces a reminder")
+        run.expect(plan!.fireAt > morning, "which fires in the future")
+        run.expect(plan!.body.contains("2 cards"), "and says what is waiting")
+
+        // --- Nothing to do means nothing is sent -----------------------------------
+        run.expect(StudyReminders.plan(entries: [], now: morning, calendar: calendar) == nil,
+                   "an empty library gets no reminder — an app asking for attention "
+                   + "with nothing to offer is one you turn notifications off for")
+        run.expect(StudyReminders.plan(entries: [card(dueIn: 4, isNew: false)].filter { _ in false },
+                                       now: morning, calendar: calendar) == nil,
+                   "nor does an empty queue")
+        run.expect(StudyReminders.plan(entries: [card(dueIn: 0, isNew: true)],
+                                       now: morning, calendar: calendar) == nil,
+                   "a library of only never-studied cards has nothing scheduled yet")
+
+        // --- Nothing due yet: line one up for the day it wakes ---------------------
+        let future = StudyReminders.plan(entries: [card(dueIn: 3)],
+                                         now: morning, calendar: calendar)
+        run.expect(future != nil, "a card due in three days still gets a reminder")
+        run.expect(future!.fireAt > morning.addingTimeInterval(2 * day),
+                   "scheduled for the day it comes due, not today")
+        run.expect(future!.body.contains("1 card"), "and counts just that day's cards")
+
+        // --- The crisis net outranks it --------------------------------------------
+        run.expect(StudyReminders.plan(entries: waiting, now: morning,
+                                       isSuppressed: true, calendar: calendar) == nil,
+                   "no push about flashcards while the crisis net is engaged")
+
+        // --- One reminder, never a pile --------------------------------------------
+        if let outcome = runAsync({ () -> (Int, Int, Int) in
+            let fake = FakeScheduler()
+            for _ in 0..<5 {
+                await StudyReminders.apply(
+                    StudyReminders.plan(entries: waiting, now: morning, calendar: calendar),
+                    using: fake)
+            }
+            let afterRepeats = fake.all.count
+            // The student finishes their review; nothing is due any more.
+            await StudyReminders.apply(
+                StudyReminders.plan(entries: [], now: morning, calendar: calendar), using: fake)
+            return (afterRepeats, fake.all.count, fake.cancelCount)
+        }) {
+            let (afterRepeats, afterDone, cancels) = outcome
+            run.expectEqual(afterRepeats, 1,
+                            "scheduling five times leaves one reminder, not five")
+            run.expectEqual(afterDone, 0,
+                            "finishing the review cancels it — nothing is more annoying "
+                            + "than being reminded to do what you just did")
+            run.expectEqual(cancels, 6, "every apply clears first")
+        } else {
+            run.expect(false, "reminder probe timed out")
+        }
+
+        // --- The copy invites ------------------------------------------------------
+        for entries in [waiting, [card(dueIn: -20)], [card(dueIn: 2)]] {
+            guard let p = StudyReminders.plan(entries: entries, now: morning,
+                                              calendar: calendar) else { continue }
+            for word in ["!", "don't", "streak", "lose", "behind", "missed", "urgent"] {
+                run.expect(!p.body.lowercased().contains(word),
+                           "a reminder must never pressure: “\(p.body)”")
+                run.expect(!p.title.lowercased().contains(word),
+                           "nor its title: “\(p.title)”")
+            }
+        }
+
+        // --- The nudge hour --------------------------------------------------------
+        let atNine = StudyReminders.nextOccurrence(ofHour: 17, after: morning, calendar: calendar)
+        run.expect(atNine != nil && atNine! > morning, "17:00 today is still ahead at 09:00")
+        let evening = morning.addingTimeInterval(11 * 3_600)   // 20:00
+        let tomorrow = StudyReminders.nextOccurrence(ofHour: 17, after: evening, calendar: calendar)
+        run.expect(tomorrow != nil && tomorrow! > evening,
+                   "past the hour, it rolls to tomorrow rather than firing immediately")
+    }
+}

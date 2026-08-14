@@ -185,12 +185,47 @@ struct RootView: View {
 
     /// Import anything the share extension left behind, and honour a quick-
     /// capture tap from the widget.
+    /// Line up the next reminder from what is actually due.
+    ///
+    /// Runs whenever the app comes to the front, which is also when the queue
+    /// has just changed — finishing a review at 9pm should not produce a
+    /// reminder about it at 5pm the next day, and `apply` cancels first so it
+    /// does not.
+    private func refreshReminders() async {
+        #if canImport(UserNotifications)
+        let entries = (try? modelContext.fetch(FetchDescriptor<StudySource>()))?
+            .flatMap { source in
+                source.flashcards.map {
+                    ReviewEntry(id: $0.id, sourceID: source.id,
+                                sourceTitle: source.title, state: $0.reviewState)
+                }
+            } ?? []
+
+        let scheduler = SystemReminderScheduler()
+        // Only ask once there is something worth asking for. A permission sheet
+        // on first launch, before the student has captured anything, is a
+        // request to be interrupted about nothing.
+        guard !entries.isEmpty else {
+            await StudyReminders.apply(nil, using: scheduler)
+            return
+        }
+        guard await scheduler.requestAuthorization() else { return }
+
+        await StudyReminders.apply(
+            StudyReminders.plan(entries: entries,
+                                isSuppressed: appState.safety.isGamificationSuppressed),
+            using: scheduler)
+        #endif
+    }
+
     private func drainSharedContent() async {
         // The widget's capture button asks for the camera; consuming the request
         // here means it survives a cold launch.
         if QuickCaptureRequest.consume() {
             shouldOpenCapture = true
         }
+
+        await refreshReminders()
 
         guard ShareInbox.hasPendingItems else { return }
         let result = await ShareImporter.drain(
