@@ -20,21 +20,10 @@ import UIKit
 enum ShareImporter {
 
     /// What happened, so the UI can say something specific.
-    struct Result: Sendable, Equatable {
-        var imported: [UUID] = []
-        var failed: Int = 0
-        var skippedForSafety: Int = 0
-
-        var didImportAnything: Bool { !imported.isEmpty }
-
-        /// The line shown when the app comes to the front.
-        var message: String? {
-            if imported.count == 1 { return "Something you shared is ready." }
-            if imported.count > 1 { return "\(imported.count) shared items are ready." }
-            if failed > 0 { return "I couldn't read what you shared. Try the text instead." }
-            return nil
-        }
-    }
+    ///
+    /// Lives in `Core` as `ShareImportOutcome` so the wording can be checked —
+    /// this file is SwiftData-bound and never runs in the harness.
+    typealias Result = ShareImportOutcome
 
     /// Drain the inbox and create sources.
     ///

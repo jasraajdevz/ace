@@ -1134,3 +1134,27 @@ key behind and the next run reported "expected 2, got 3". Same shape as the
 `ProviderController` model leak in D46's checks — a shared, real store needs a
 known starting state or the assertions stop meaning anything.
 
+## D69 — A partial import said everything worked
+
+`ShareImporter.Result.message` reported failures only when *nothing* had
+succeeded:
+
+    if imported.count > 1 { return "\(imported.count) shared items are ready." }
+    if failed > 0        { return "I couldn't read what you shared." }
+
+Share five things, two in a format Ace cannot read, and it said "3 shared items
+are ready". Meanwhile `ShareInbox.drain()` clears the manifest before processing
+— deliberately, so a crash mid-drain loses one item rather than re-importing
+forever — so the two failures were already gone. The student is told it all
+worked and quietly loses two things, with no way to find out.
+
+That toast is the only moment they could have been told, so partial failure now
+has its own branch.
+
+Items the safety net held back are still not counted. That surface has already
+said what it needs to; totting them up in a toast afterwards would be crass.
+
+The type moved to `Core` as `ShareImportOutcome` to be checkable at all —
+`ShareImporter` is SwiftData-bound and never runs in the harness, which is
+exactly why the wording went unexamined.
+

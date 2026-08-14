@@ -832,3 +832,66 @@ enum ResetChecks {
         defaults.set(true, forKey: "ace.sounds.enabled")
     }
 }
+
+// MARK: - Telling the student what actually arrived
+
+/// The import toast reported failures only when *nothing* succeeded.
+///
+/// Share five things, two in a format Ace can't read, and it said "3 shared
+/// items are ready" — while `ShareInbox.drain()` had already cleared the
+/// manifest, so the other two were gone. The student is told it all worked and
+/// quietly loses two things. That message is the last chance they had to know.
+enum ShareOutcomeChecks {
+    static let all = CheckSuite(name: "What the import toast says") { run in
+        func outcome(_ ok: Int, failed: Int = 0, skipped: Int = 0) -> ShareImportOutcome {
+            ShareImportOutcome(imported: (0..<ok).map { _ in UUID() },
+                               failed: failed, skippedForSafety: skipped)
+        }
+
+        // Nothing happened at all.
+        run.expect(outcome(0).message == nil, "an empty inbox says nothing")
+
+        // Clean successes.
+        run.expectEqual(outcome(1).message, "Something you shared is ready.")
+        run.expectEqual(outcome(4).message, "4 shared items are ready.")
+
+        // Clean failures.
+        run.expectEqual(outcome(0, failed: 1).message,
+                        "I couldn't read what you shared. Try the text instead.")
+        run.expectEqual(outcome(0, failed: 3).message,
+                        "I couldn't read what you shared. Try the text instead.")
+
+        // --- THE BUG: partial failure ------------------------------------------
+        let partial = outcome(3, failed: 2)
+        run.expect(partial.message?.contains("3") == true,
+                   "a partial import still reports what arrived")
+        run.expect(partial.message?.contains("2") == true,
+                   "and must say how many did not — they are already gone from "
+                   + "the inbox, so this is the only time the student can be told")
+
+        let oneOfTwo = outcome(1, failed: 1)
+        run.expect(oneOfTwo.message?.lowercased().contains("couldn't read") == true,
+                   "one succeeded and one failed still mentions the failure")
+
+        // Every mixed combination must name both numbers.
+        for ok in 1...4 {
+            for failed in 1...3 {
+                let message = outcome(ok, failed: failed).message ?? ""
+                run.expect(message.contains("\(ok)") || (ok == 1 && message.contains("One")),
+                           "\(ok) ok / \(failed) failed must state the successes: “\(message)”")
+                run.expect(message.contains("\(failed)") || (failed == 1 && message.contains("one")),
+                           "\(ok) ok / \(failed) failed must state the failures: “\(message)”")
+            }
+        }
+
+        // Safety-held items are deliberately never counted in the toast.
+        run.expectEqual(outcome(2, skipped: 1).message, "2 shared items are ready.",
+                        "the safety surface has already spoken; tallying it here "
+                        + "afterwards would be crass")
+        run.expect(outcome(0, skipped: 2).message == nil,
+                   "and an import that was entirely held back says nothing extra")
+
+        run.expect(outcome(2, failed: 1).didImportAnything, "some arrived")
+        run.expect(!outcome(0, failed: 2).didImportAnything, "none arrived")
+    }
+}
