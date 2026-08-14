@@ -410,3 +410,92 @@ enum ShareConcurrencyChecks {
         run.expectEqual(ShareInbox.load().count, 0, "clearing empties the inbox")
     }
 }
+
+// MARK: - Muting must not eat the student's settings
+
+/// A temporary silence and a stored preference were the same variable.
+///
+/// `Feedback.setMuted` wrote to `isEnabled`, whose `didSet` persists to
+/// `UserDefaults`. So the crisis net and Do Not Disturb were both editing the
+/// student's saved settings on their behalf, and "unmute" meant "switch on"
+/// rather than "put back what they chose".
+///
+/// Two ways that hurt someone, and the second is the one that matters: the
+/// crisis net mutes on the way in and unmutes only when the student taps
+/// "I'm okay". Plenty of people never tap it. The mute was on disk by then, so
+/// the app returned silent on every launch afterwards — a safety response
+/// leaving a permanent, unexplained degradation behind (§10).
+enum MutePreferenceChecks {
+    static let all = CheckSuite(name: "Muting leaves settings alone") { run in
+        // Both singletons are main-actor isolated, and the runner's top-level
+        // code *is* the main thread — so this is a statement of fact, not a
+        // way around the checker.
+        MainActor.assumeIsolated { body(run) }
+    }
+
+    @MainActor
+    private static func body(_ run: CheckRun) {
+        let sound = SoundCuePlayer.shared
+        let haptics = HapticSettings.shared
+        let soundKey = "ace.sounds.enabled"
+        let hapticKey = "ace.haptics.enabled"
+
+        let originalSound = sound.isEnabled
+        let originalHaptics = haptics.isEnabled
+        defer {
+            sound.isEnabled = originalSound
+            haptics.isEnabled = originalHaptics
+            Feedback.setMuted(false)
+        }
+
+        // A student who has deliberately turned sounds off.
+        sound.isEnabled = false
+        haptics.isEnabled = false
+        run.expect(!sound.isAudible, "sounds off means nothing plays")
+        run.expect(!haptics.shouldVibrate, "haptics off means nothing buzzes")
+
+        // Do Not Disturb goes on, then off again.
+        Feedback.setMuted(true)
+        run.expect(!sound.isAudible, "muting keeps them off")
+        Feedback.setMuted(false)
+
+        // The bug: unmuting used to switch them back ON and save that.
+        run.expect(!sound.isEnabled,
+                   "unmuting must restore the student's choice, not override it")
+        run.expect(!haptics.isEnabled, "same for haptics")
+        run.expect(!sound.isAudible, "and nothing should be audible afterwards")
+        run.expectEqual(UserDefaults.standard.bool(forKey: soundKey), false,
+                        "their saved preference must still say off")
+        run.expectEqual(UserDefaults.standard.bool(forKey: hapticKey), false,
+                        "their saved haptic preference too")
+
+        // The other direction: someone who wants sound, muted mid-session.
+        sound.isEnabled = true
+        haptics.isEnabled = true
+        run.expect(sound.isAudible, "sound on plays")
+
+        // The crisis net engages — and the student never taps "I'm okay",
+        // which is the case that used to persist a permanent silence.
+        Feedback.setMuted(true)
+        run.expect(!sound.isAudible, "the crisis net silences everything")
+        run.expect(!haptics.shouldVibrate, "haptics included")
+        run.expectEqual(UserDefaults.standard.bool(forKey: soundKey), true,
+                        "a transient mute must never reach the stored preference — "
+                        + "an unacknowledged crisis would otherwise leave the app "
+                        + "silent on every launch afterwards")
+        run.expectEqual(UserDefaults.standard.bool(forKey: hapticKey), true,
+                        "same for haptics")
+
+        // Acknowledging brings it back to what they had.
+        Feedback.setMuted(false)
+        run.expect(sound.isAudible, "acknowledging restores sound")
+        run.expect(haptics.shouldVibrate, "and haptics")
+
+        // Settings still wins while muted — changing a preference mid-mute is
+        // recorded, it just isn't audible yet.
+        Feedback.setMuted(true)
+        sound.isEnabled = false
+        Feedback.setMuted(false)
+        run.expect(!sound.isAudible, "a preference changed during a mute still holds after it")
+    }
+}

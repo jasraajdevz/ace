@@ -996,3 +996,35 @@ volume callback cannot be `@Sendable` without breaking both of its callers,
 which legitimately mutate main-actor state; the real fix is `@Binding var
 volume`, which needs a stored property `FocusMusicPlayer` does not have yet.
 
+## D63 — A temporary silence is not a setting
+
+`Feedback.setMuted` wrote to `isEnabled`, whose `didSet` persists to
+`UserDefaults`. So the crisis net and Do Not Disturb were both editing the
+student's saved preferences on their behalf, and "unmute" meant "switch on"
+rather than "put back what they chose".
+
+The doc comment described the collision without noticing it: *"Student-
+controlled. Also flipped off by Do Not Disturb."* Two owners, one variable.
+
+Two ways it hurt someone:
+
+  • A student who had turned sounds off in Settings got them switched back on
+    the first time they toggled Do Not Disturb off — their choice overwritten
+    and saved, without them going near Settings.
+  • The crisis net mutes on the way in and unmutes only when the student taps
+    "I'm okay". In that moment, plenty of people never tap it. The mute was on
+    disk by then, so the app came back silent on every launch afterwards, with
+    nothing to explain it and nothing they did to cause it. A safety response
+    must not leave a permanent, unexplained degradation behind (§10).
+
+`isEnabled` is now the stored preference and only Settings writes it. `isMuted`
+is transient and never persisted. `isAudible` / `shouldVibrate` are the ones
+that decide anything. Unmuting restores what the student chose rather than
+turning things on — those are different operations, and conflating them is how
+a preference gets eaten by a temporary state.
+
+Checked and cleared in the same sweep: no other degenerate conditionals (the
+identical-ternary in the share extension was the only one), and the other flags
+the scan flagged are `@FocusState` or `.sheet(isPresented:)` bindings, which
+SwiftUI resets itself.
+

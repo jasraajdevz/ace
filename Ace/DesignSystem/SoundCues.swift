@@ -65,10 +65,31 @@ final class SoundCuePlayer {
     private var buffers: [SoundCue: AVAudioPCMBuffer] = [:]
     private var isEngineRunning = false
 
-    /// Student-controlled. Also flipped off by Do Not Disturb in Part 4.
+    /// The student's own choice. Only Settings writes this, and it persists.
     var isEnabled: Bool {
         didSet { UserDefaults.standard.set(isEnabled, forKey: Self.storageKey) }
     }
+
+    /// Silenced for now — by the crisis net, or by Do Not Disturb.
+    ///
+    /// Deliberately NOT persisted, and deliberately not the same variable as
+    /// `isEnabled`. It used to be: `setMuted` wrote straight to the preference,
+    /// whose `didSet` saves to `UserDefaults`. Two consequences, both bad.
+    ///
+    /// A student who had turned sounds off in Settings got them switched back
+    /// *on* the first time they toggled Do Not Disturb off, because unmuting
+    /// meant "enabled = true" rather than "restore what they chose".
+    ///
+    /// And the crisis net mutes on the way in and unmutes only when the student
+    /// taps "I'm okay" — which, in that moment, plenty of people never do. The
+    /// mute was written to disk, so the app came back silent on every launch
+    /// afterwards with nothing to explain it and nothing they had done to cause
+    /// it. A safety response must not leave a permanent, unexplained
+    /// degradation behind (§10).
+    var isMuted = false
+
+    /// What actually decides whether a cue plays.
+    var isAudible: Bool { isEnabled && !isMuted }
 
     /// Master gain, lowered while Ace is speaking so cues never fight the voice.
     var gain: Float = 1.0 {
@@ -118,7 +139,7 @@ final class SoundCuePlayer {
 
     /// Play a cue. No-op when disabled or if the engine failed to start.
     func play(_ cue: SoundCue) {
-        guard isEnabled, isEngineRunning,
+        guard isAudible, isEngineRunning,
               let player = players[cue], let buffer = buffers[cue] else { return }
         player.scheduleBuffer(buffer, at: nil, options: .interrupts)
     }
@@ -204,8 +225,13 @@ enum Feedback {
 
     /// Silence everything non-essential — Do Not Disturb, and any moment the
     /// crisis net is engaged. Celebration noise is never appropriate there.
+    /// Silence everything, or stop silencing it.
+    ///
+    /// Unmuting restores whatever the student chose in Settings rather than
+    /// turning things on — those are different operations, and conflating them
+    /// is how a preference gets overwritten by a temporary state.
     static func setMuted(_ muted: Bool) {
-        SoundCuePlayer.shared.isEnabled = !muted
-        HapticSettings.shared.isEnabled = !muted
+        SoundCuePlayer.shared.isMuted = muted
+        HapticSettings.shared.isMuted = muted
     }
 }

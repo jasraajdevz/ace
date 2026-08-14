@@ -59,7 +59,7 @@ enum Haptic {
         Task { @MainActor in
             // Respect the student's own setting first (Part 4 wires this to the
             // DND / low-stimulation surface).
-            guard HapticSettings.shared.isEnabled else { return }
+            guard HapticSettings.shared.shouldVibrate else { return }
 
             switch self {
             case .tap:
@@ -113,9 +113,31 @@ final class HapticSettings {
     static let shared = HapticSettings()
     private static let storageKey = "ace.haptics.enabled"
 
+    /// The student's own choice. Only Settings writes this, and it persists.
     var isEnabled: Bool {
         didSet { UserDefaults.standard.set(isEnabled, forKey: Self.storageKey) }
     }
+
+    /// Silenced for now — by the crisis net, or by Do Not Disturb.
+    ///
+    /// Deliberately NOT persisted, and deliberately not the same variable as
+    /// `isEnabled`. It used to be: `setMuted` wrote straight to the preference,
+    /// whose `didSet` saves to `UserDefaults`. Two consequences, both bad.
+    ///
+    /// A student who had turned sounds off in Settings got them switched back
+    /// *on* the first time they toggled Do Not Disturb off, because unmuting
+    /// meant "enabled = true" rather than "restore what they chose".
+    ///
+    /// And the crisis net mutes on the way in and unmutes only when the student
+    /// taps "I'm okay" — which, in that moment, plenty of people never do. The
+    /// mute was written to disk, so the app came back silent on every launch
+    /// afterwards with nothing to explain it and nothing they had done to cause
+    /// it. A safety response must not leave a permanent, unexplained
+    /// degradation behind (§10).
+    var isMuted = false
+
+    /// What actually decides whether the phone buzzes.
+    var shouldVibrate: Bool { isEnabled && !isMuted }
 
     private init() {
         // Default on. `object(forKey:)` distinguishes "never set" from "set to
