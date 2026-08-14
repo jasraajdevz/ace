@@ -150,6 +150,7 @@ enum AllChecks {
             MutePreferenceChecks.all,
             CaptureFlowChecks.all,
             ProfileApplyChecks.all,
+            ResetChecks.all,
             ServiceChecks.comfortMute,
             ServiceChecks.providerSwitching,
             ServiceChecks.moodEasing,

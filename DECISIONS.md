@@ -1092,3 +1092,45 @@ grade list, and both write through to the profile. The voice picker applies
 immediately; the grade applies when Settings closes. That is the code as it
 stands, verified by reading it — none of it has ever been run on a device.
 
+## D67 — XP was a number the app kept to itself
+
+`ProgressRecord.xpToNextLevel` has been computed since the model was written and
+appeared on no screen. The home card showed a ring, so the student could see they
+were *somewhere* through a level without ever being told where, and the XP total
+was never displayed at all.
+
+The card now carries a bar with the real figures. Same family as everything else
+in this project: the value existed, was correct, and nothing surfaced it.
+
+## D68 — "Start over" did not start over
+
+The reset deleted the six model types and stopped. Three things outlived it:
+
+  • **The usage ledger.** A student at their free cap could reset the app, lose
+    every source and every session, and still be capped.
+  • **The share inbox**, manifest and payload files. Items shared before the
+    reset were imported into the "fresh" app afterwards.
+  • **Every `ace.speaking.history.<uuid>` entry.** Its source had just been
+    deleted, so the key referred to an id that existed nowhere — unreadable,
+    unreclaimable, and one more added for every source ever created.
+
+That last one leaked on the ordinary path too: deleting a single source never
+cleared its history either. `AppReset.forget(sourceID:)` handles that now, and
+the store shares the key prefix rather than spelling it a second time — written
+out twice, the sweep would keep passing while cleaning nothing.
+
+What a reset deliberately keeps, because "destructive" is not the same as
+"indiscriminate": the purchased tier, since wiping study data must never look
+like revoking something they paid for; and the sound, haptic and music
+preferences, because someone who turned haptics off did it for a reason a reset
+does not undo.
+
+`resetAll` lived in a view and had no test and no way to get one. The part that
+isn't SwiftData is now `AppReset`, which runs.
+
+Worth recording: the first version of the check was not repeatable. It seeded
+`UserDefaults.standard` without clearing first, so the adversarial run left a
+key behind and the next run reported "expected 2, got 3". Same shape as the
+`ProviderController` model leak in D46's checks — a shared, real store needs a
+known starting state or the assertions stop meaning anything.
+

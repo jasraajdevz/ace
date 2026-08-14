@@ -397,7 +397,8 @@ struct SettingsView: View {
         try? modelContext.delete(model: ProgressRecord.self)
         try? modelContext.delete(model: Profile.self)
 
-        UserDefaults.standard.removeObject(forKey: "ace.demoContentInstalled")
+        // The rows are only half of it — see `AppReset` for what else survived.
+        AppReset.clearStoredState()
         try? modelContext.save()
         // Otherwise the home screen keeps showing a streak for an app with
         // nothing in it.

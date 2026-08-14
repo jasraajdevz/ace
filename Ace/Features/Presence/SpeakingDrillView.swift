@@ -365,7 +365,9 @@ struct SpeakingDrillView: View {
 enum SpeakingHistoryStore {
 
     private static func key(for source: StudySource) -> String {
-        "ace.speaking.history.\(source.id.uuidString)"
+        // Shared with `AppReset`, which sweeps this prefix. Written out twice,
+        // the sweep would keep passing while cleaning nothing.
+        AppReset.speakingHistoryPrefix + source.id.uuidString
     }
 
     static func load(for source: StudySource) -> SpeakingHistory {

@@ -752,3 +752,83 @@ private enum ApplyProbe {
         return out
     }
 }
+
+// MARK: - Start over
+
+/// "Start over" deleted the six model types and stopped.
+///
+/// Three things outlived it. The usage ledger, so a student at their free cap
+/// could lose all their work and still be capped. The share inbox and its
+/// payload files, so items shared before the reset were imported into the
+/// "fresh" app afterwards. And every `ace.speaking.history.<uuid>` entry, whose
+/// source had just been deleted — keyed to an id that no longer existed
+/// anywhere, unreadable and unreclaimable, one more added per source forever.
+///
+/// That last one leaked on the ordinary path too: deleting a single source
+/// never cleared its history either.
+enum ResetChecks {
+    static let all = CheckSuite(name: "Start over actually starts over") { run in
+        let defaults = UserDefaults.standard
+        let sourceA = UUID(), sourceB = UUID()
+        let prefix = AppReset.speakingHistoryPrefix
+
+        // Start from a known state. `UserDefaults.standard` is real and shared,
+        // so a previous run — or a previous *failed* run — can leave entries
+        // behind and make the counts below meaningless. An earlier version of
+        // this check skipped it and reported "expected 2, got 3" the first time
+        // anything left a key lying around.
+        AppReset.clearAllSpeakingHistory()
+
+        // Preferences that must survive, seeded first so the sweep can be shown
+        // to leave them alone.
+        let tierBefore = defaults.string(forKey: "ace.tier")
+        defaults.set("plus", forKey: "ace.tier")
+        defaults.set(false, forKey: "ace.sounds.enabled")
+
+        defaults.set(true, forKey: "ace.demoContentInstalled")
+        defaults.set(Data("ledger".utf8), forKey: "ace.usage.ledger")
+        defaults.set(Date(), forKey: "ace.quickCapture.requestedAt")
+        defaults.set(Data("scores".utf8), forKey: prefix + sourceA.uuidString)
+        defaults.set(Data("scores".utf8), forKey: prefix + sourceB.uuidString)
+
+        run.expectEqual(AppReset.speakingHistoryKeyCount(), 2, "two sources have history")
+
+        // --- Deleting one source takes only its own history ---------------------
+        AppReset.forget(sourceID: sourceA)
+        run.expect(defaults.data(forKey: prefix + sourceA.uuidString) == nil,
+                   "the deleted source's history goes with it")
+        run.expect(defaults.data(forKey: prefix + sourceB.uuidString) != nil,
+                   "and the other source keeps its own")
+        run.expectEqual(AppReset.speakingHistoryKeyCount(), 1, "exactly one left")
+
+        // --- Start over -----------------------------------------------------------
+        AppReset.clearStoredState()
+
+        run.expectEqual(AppReset.speakingHistoryKeyCount(), 0,
+                        "no speaking history survives a reset — it would be keyed "
+                        + "to sources that no longer exist")
+        run.expect(defaults.data(forKey: "ace.usage.ledger") == nil,
+                   "the usage ledger must not survive: a student at their cap "
+                   + "would reset the app and still be capped")
+        run.expect(defaults.object(forKey: "ace.demoContentInstalled") == nil,
+                   "demo content installs again for a genuinely fresh app")
+        run.expect(defaults.object(forKey: "ace.quickCapture.requestedAt") == nil,
+                   "a pending widget capture must not fire into the fresh app")
+        if ShareInbox.containerURL != nil {
+            run.expectEqual(ShareInbox.load().count, 0, "the share inbox is emptied")
+        }
+
+        // --- What a reset must NOT take ------------------------------------------
+        run.expectEqual(defaults.string(forKey: "ace.tier"), "plus",
+                        "a subscription is not local data — wiping study material "
+                        + "must never look like revoking something they paid for")
+        run.expectEqual(defaults.bool(forKey: "ace.sounds.enabled"), false,
+                        "someone who turned sound off did it for a reason a reset "
+                        + "does not undo")
+
+        // Put the machine back how it was found.
+        if let tierBefore { defaults.set(tierBefore, forKey: "ace.tier") }
+        else { defaults.removeObject(forKey: "ace.tier") }
+        defaults.set(true, forKey: "ace.sounds.enabled")
+    }
+}

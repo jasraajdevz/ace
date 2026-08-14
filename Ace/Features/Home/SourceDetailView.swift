@@ -104,6 +104,10 @@ struct SourceDetailView: View {
                             isPresented: $isConfirmingDelete,
                             titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
+                // Its speaking scores are keyed by the source id, so deleting
+                // the row without this leaves an entry nothing can ever read
+                // again — one more added for every source ever deleted.
+                AppReset.forget(sourceID: source.id)
                 modelContext.delete(source)
                 try? modelContext.save()
                 dismiss()
