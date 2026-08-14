@@ -504,8 +504,7 @@ enum FocusModeChecks {
         // §10: "it never blocks the app or the studying".
         for state in [DoNotDisturbState.off, .on,
                       DoNotDisturbState(quietsAceChatter: true, quietsFeedback: true,
-                                        calmsInterface: true, requestsSystemFocus: true,
-                                        isOn: true)] {
+                                        calmsInterface: true, isOn: true)] {
             for (capability, allowed) in state.capabilities {
                 run.expect(allowed,
                            "Do Not Disturb must never disable “\(capability)” — nudge, never cage")
@@ -892,5 +891,100 @@ enum VoiceSafetyChecks {
             _ = completed.finish(now: started.addingTimeInterval(26 * 60))
             run.expect(completed.phase.metGoal, "sitting out the full goal meets it")
         }
+
+    }
+}
+
+
+// MARK: - Idle
+
+enum IdleChecks {
+    static let all = CheckSuite(name: "Noticing a student has gone quiet") { run in
+        // --- Ace can notice you've gone quiet ------------------------------------
+        //
+        // `BehaviourSignals.idleSeconds` was never assigned by anything, so the
+        // Guardian's idle check-in and the distracted mood read were both dead.
+        // The bug was structural: `evaluateGuardian` runs when the student acts,
+        // and idling is the absence of acting.
+        if let r = runAsync({ await IdleProbe.run() }) {
+            run.expectClose(r.idleAfterTwoMinutes, 120, tolerance: 0.5,
+                            "two minutes of silence should read as two minutes idle")
+            run.expectEqual(r.idleAfterInteraction, 0,
+                            "doing something resets the idle clock")
+            run.expect(r.guardianOfferedCheckIn,
+                       "the Guardian should check in on a student who has gone quiet")
+            run.expect(r.leftAloneWhileWorking,
+                       "a student who is working must not be interrupted")
+            run.expectEqual(r.idleWhileFinished, 0,
+                            "a finished session doesn't accumulate idle time")
+            run.expect(r.idleAfterResumeIsZero,
+                       "resuming from a deliberate pause is not drift")
+        } else {
+            run.expect(false, "idle probe timed out")
+        }
+    }
+}
+
+// MARK: - Idle probe
+
+@MainActor
+private enum IdleProbe {
+
+    struct Result: Sendable {
+        var idleAfterTwoMinutes: TimeInterval = 0
+        var idleAfterInteraction: TimeInterval = -1
+        var guardianOfferedCheckIn = false
+        var idleWhileFinished: TimeInterval = -1
+        var idleAfterResumeIsZero = false
+        var leftAloneWhileWorking = false
+    }
+
+    static func run() async -> Result {
+        var out = Result()
+        let t0 = Date()
+        let goal = StudyGoal(target: .duration(minutes: 25), rawText: "25 minutes")
+
+        let appState = AppState()
+        let presence = PresenceCoordinator()
+        presence.begin(goal: goal, appState: appState)
+        appState.beginSession()
+
+        presence.noteInteraction(now: t0)
+        presence.refreshIdle(now: t0.addingTimeInterval(120))
+        out.idleAfterTwoMinutes = appState.signals.idleSeconds
+
+        // Drive the real tick, not a stand-in for it: a student who set a goal
+        // and then went quiet for three minutes should hear from Ace.
+        let quiet = PresenceCoordinator()
+        let quietState = AppState()
+        quiet.begin(goal: goal, appState: quietState)
+        quiet.noteInteraction(now: t0)
+        quiet.tickOnce(now: t0.addingTimeInterval(200))
+        out.guardianOfferedCheckIn = quiet.activeNudge != nil
+
+        // …and a student who is actively working should not be interrupted.
+        let busy = PresenceCoordinator()
+        let busyState = AppState()
+        busy.begin(goal: goal, appState: busyState)
+        busy.noteInteraction(now: t0)
+        busy.tickOnce(now: t0.addingTimeInterval(15))
+        out.leftAloneWhileWorking = busy.activeNudge == nil
+
+        presence.noteInteraction(now: t0.addingTimeInterval(130))
+        out.idleAfterInteraction = appState.signals.idleSeconds
+
+        // Pausing and resuming.
+        presence.pauseSession()
+        presence.resumeSession()
+        presence.refreshIdle(now: Date())
+        out.idleAfterResumeIsZero = appState.signals.idleSeconds < 1
+
+        // A closed session stops counting.
+        presence.finishSession()
+        appState.signals.idleSeconds = 0
+        presence.refreshIdle(now: Date().addingTimeInterval(600))
+        out.idleWhileFinished = appState.signals.idleSeconds
+
+        return out
     }
 }

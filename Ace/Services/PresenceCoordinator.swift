@@ -46,6 +46,18 @@ final class PresenceCoordinator {
     /// Set while the app is in the background, so the return can be greeted.
     private var leftAt: Date?
     private var tickTask: Task<Void, Never>?
+
+    /// When the student last did something. Idle time is measured from here.
+    ///
+    /// Nothing used to assign `BehaviourSignals.idleSeconds`, so it sat at zero
+    /// for the life of every session and six branches that read it were dead:
+    /// the Guardian's idle check-in, the distracted mood read, and `isDrifting`.
+    ///
+    /// It was unreachable by construction, not by accident. `evaluateGuardian`
+    /// is called by the study screens after the student does something, and
+    /// being idle means precisely that nothing happened to call it. The only
+    /// thing that can notice absence is the clock, so the tick has to do it.
+    private var lastInteraction = Date()
     private weak var appState: AppState?
 
     init() {}
@@ -63,6 +75,7 @@ final class PresenceCoordinator {
             self?.music.setDucking(speaking)
         }
         guardian.reset()
+        lastInteraction = Date()
         let opening = session.begin(goal: goal)
         deliver(opening)
         startTicking()
@@ -78,6 +91,10 @@ final class PresenceCoordinator {
 
     func resumeSession() {
         session.resume()
+        // Coming back from a deliberate pause is not idling. Without this, a
+        // twenty-minute break would read as twenty minutes of drift the moment
+        // the session resumed.
+        noteInteraction()
         startTicking()
     }
 
@@ -96,7 +113,24 @@ final class PresenceCoordinator {
 
     /// Report countable progress toward the goal.
     func recordProgress(_ amount: Int = 1) {
+        noteInteraction()
         session.recordCompletion(amount)
+    }
+
+    // MARK: - Idle
+
+    /// The student did something. Resets the idle clock.
+    func noteInteraction(now: Date = Date()) {
+        lastInteraction = now
+        appState?.signals.idleSeconds = 0
+    }
+
+    /// Recompute how long they've been gone. Called from the tick.
+    ///
+    /// Takes `now` so the behaviour can be checked without waiting in real time.
+    func refreshIdle(now: Date = Date()) {
+        guard session.phase.isActive else { return }
+        appState?.signals.idleSeconds = max(0, now.timeIntervalSince(lastInteraction))
     }
 
     /// The ambient loop. Fires every fifteen seconds; almost always does nothing,
@@ -107,17 +141,45 @@ final class PresenceCoordinator {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(15))
                 guard let self, !Task.isCancelled else { return }
-                if let message = self.session.tick() {
-                    self.deliver(message)
-                }
+                self.tickOnce()
             }
+        }
+    }
+
+    /// One pass of the ambient loop.
+    ///
+    /// Split out of the timer so it can be checked without waiting fifteen
+    /// real seconds. Everything the loop does that could ever say something is
+    /// in here.
+    func tickOnce(now: Date = Date()) {
+        // Measure absence before asking anyone what to do about it.
+        refreshIdle(now: now)
+
+        if let message = session.tick(now: now) {
+            deliver(message)
+        }
+
+        // The Guardian gets a look on every tick, not only after the student
+        // acts — otherwise it can never notice that they haven't.
+        if let appState {
+            considerGuardian(signals: appState.signals, mood: appState.mood)
         }
     }
 
     // MARK: - Guardian
 
-    /// Called after anything that changes how the session is going.
+    /// Called by the study screens after anything the student did.
     func evaluateGuardian(signals: BehaviourSignals, mood: MoodReading) {
+        noteInteraction()
+        // They just acted, so whatever idle figure the tick last wrote is stale.
+        var fresh = signals
+        fresh.idleSeconds = 0
+        considerGuardian(signals: fresh, mood: mood)
+    }
+
+    /// Decide whether to offer something. Separate from `evaluateGuardian` so
+    /// the tick can ask without resetting the very clock it is reading.
+    private func considerGuardian(signals: BehaviourSignals, mood: MoodReading) {
         // The safety net outranks everything. If it's engaged, the Guardian's
         // job is to be quiet.
         guard appState?.safety.isGamificationSuppressed != true else { return }
@@ -141,6 +203,9 @@ final class PresenceCoordinator {
         guard appState?.safety.isGamificationSuppressed != true else { return }
 
         appState?.signals.appExits += 1
+        // Being away in the app switcher isn't idling at the desk, and they're
+        // back now either way.
+        noteInteraction()
         offer(.welcomeBack, mood: appState?.mood.mood ?? .neutral, awaySeconds: away)
     }
 
@@ -166,6 +231,7 @@ final class PresenceCoordinator {
 
     /// The student took the offer.
     func acceptNudge() -> GuardianAction {
+        noteInteraction()
         let action = activeNudge?.action ?? .none
         activeNudge = nil
         return action
@@ -173,6 +239,7 @@ final class PresenceCoordinator {
 
     /// The student ignored it. Don't offer that again this session.
     func dismissNudge() {
+        noteInteraction()
         if let action = activeNudge?.action {
             guardian.recordDeclined(action)
         }

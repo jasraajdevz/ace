@@ -142,6 +142,23 @@ def main():
         if reads == 0:
             dead.append((name, own, f"{p}:{ln}"))
 
+    # A third category, and the one that hid `requestsSystemFocus`: a property
+    # neither read nor written anywhere. Codable types are skipped above because
+    # the synthesised coder reads their members without naming them — but a
+    # member that is never even *written* is not being coded either, so it is
+    # safe to flag and would otherwise be invisible.
+    for name, p, own, ln in props:
+        if (p, own) not in codable:
+            continue
+        touched = 0
+        for m in re.finditer(r"(?<![\w])" + re.escape(name) + r"\b", whole):
+            before = whole[max(0, m.start() - 40):m.start()]
+            if re.search(r"\b(var|let)\s+$", before):
+                continue
+            touched += 1
+        if touched == 0:
+            dead.append((name, own, f"{p}:{ln}"))
+
     listing = "--list" in sys.argv
     if listing:
         print(f"{len(props)} stored properties scanned")
@@ -152,7 +169,7 @@ def main():
     unlisted = [d for d in dead if d[0] not in ALLOWED]
     if unlisted:
         print(f"\n{len(unlisted)} propert{'y is' if len(unlisted) == 1 else 'ies are'} "
-              "written but never read:")
+              "set and never read back:")
         for name, own, loc in unlisted:
             print(f"    {own or '?'}.{name}  ({loc})")
         print("\nEither read it, delete it, or add it to ALLOWED in "

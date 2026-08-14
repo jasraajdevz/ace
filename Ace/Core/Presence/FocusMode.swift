@@ -33,7 +33,6 @@ struct DoNotDisturbState: Sendable, Equatable, Codable {
     /// the palette. A low-stimulation surface (§Part 4).
     var calmsInterface: Bool = true
     /// Asks the system to suppress notifications while a session is running.
-    var requestsSystemFocus: Bool = true
 
     var isOn: Bool = false
 

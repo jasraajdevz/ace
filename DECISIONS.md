@@ -736,3 +736,31 @@ it. `finishSession()` had already computed the right answer one line earlier and
 stored it in the phase; it just wasn't read. A reward given for not doing the
 thing makes every other reward mean less.
 
+## D50 — The ambient tick measures idle time, and its body is testable
+
+`BehaviourSignals.idleSeconds` was read in six places — the Guardian's idle
+check-in, the distracted mood read, `isDrifting` — and assigned by nothing. All
+six branches were dead, so Ace could never notice a student had drifted off,
+which for a body-double companion is close to the entire point.
+
+The reason it stayed hidden is worth recording: it was unreachable by
+construction, not by oversight. `evaluateGuardian` is called by the study
+screens after the student *does* something, and idling is the absence of doing
+something. No amount of testing the Guardian in isolation could surface it —
+and the Guardian is tested heavily, 135 checks, all passing throughout. The
+units were right; nothing fed them.
+
+`PresenceCoordinator` now keeps a `lastInteraction` clock, the fifteen-second
+tick refreshes `idleSeconds` from it, and the tick asks the Guardian on every
+pass rather than only after activity. `evaluateGuardian` stays the screen-driven
+entry point and resets the clock; the tick calls `considerGuardian`, which does
+not — otherwise it would reset the very clock it is reading.
+
+The tick body moved into `tickOnce(now:)` so it can be driven at an arbitrary
+time instead of waiting fifteen real seconds. Both halves of the bug were
+re-introduced and confirmed to fail the new suite.
+
+`DoNotDisturbState.requestsSystemFocus` came out of the same sweep and was
+deleted: nothing read it, nothing set it, and iOS gives an app no way to request
+a system Focus regardless.
+

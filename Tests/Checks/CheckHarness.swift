@@ -132,6 +132,7 @@ enum AllChecks {
             GuardianChecks.all,
             ComfortChecks.all,
             FocusModeChecks.all,
+            IdleChecks.all,
             SpeakingDrillChecks.all,
             VoiceSafetyChecks.all,
             UsageMeterChecks.all,
