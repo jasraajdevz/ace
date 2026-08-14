@@ -134,7 +134,7 @@ struct HomeView: View {
                 .font(Typeface.footnote)
                 .foregroundStyle(Ink.textTertiary)
             Text(headline)
-                .font(Typeface.display)
+                .aceDisplay()
                 .foregroundStyle(Ink.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
         }

@@ -63,7 +63,16 @@ struct AceButton: View {
                 RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
                     .strokeBorder(strokeColor, lineWidth: 1)
             )
-            .elevation(kind == .primary && isEnabled ? .low : .none)
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                    .fill(Ink.sheenGradient)
+                    .blendMode(.plusLighter)
+                    .allowsHitTesting(false)
+                    .opacity(kind == .ghost ? 0 : 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
+            .elevation(kind == .primary && isEnabled ? .medium : .none)
+            .glow(kind == .primary && isEnabled && !isPressed ? .accent : .none)
             .scaleEffect(isPressed && !reduceMotion ? 0.97 : 1)
             .opacity(isEnabled ? 1 : 0.45)
         }
@@ -84,8 +93,12 @@ struct AceButton: View {
 
     @ViewBuilder private var background: some View {
         switch kind {
-        case .primary: Ink.brandGradient
-        case .secondary: Ink.surfaceRaised
+        // A vertical ramp rather than the brand gradient: the primary button is
+        // a *control*, and it should read as a lit surface. The brand gradient
+        // is diagonal and stays reserved for the mark and level-ups, so it keeps
+        // meaning something.
+        case .primary: Ink.accentGradient
+        case .secondary: Ink.surfaceGradient(Ink.surfaceRaised)
         case .ghost: Color.clear
         case .destructive: Ink.dangerSoft
         }
@@ -112,22 +125,36 @@ struct AceButton: View {
 
 // MARK: - Card
 
-/// The standard container. Surface fill, hairline border, soft shadow.
+/// The standard container.
+///
+/// Three things together make it read as a raised object on a near-black
+/// ground, and it needs all three: a fill that falls off slightly toward the
+/// bottom, a sheen along the top edge, and a border that is brighter at the top
+/// than the bottom. Shadow alone does almost nothing at these ground values —
+/// there is no room below near-black for a shadow to darken into.
 struct AceCard<Content: View>: View {
     var padding: CGFloat = Space.l
     var fill: Color = Ink.surface
     var elevation: Elevation = .low
     @ViewBuilder var content: Content
 
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
+    }
+
     var body: some View {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(fill)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+            .background(Ink.surfaceGradient(fill))
+            .overlay(shape.fill(Ink.sheenGradient).blendMode(.plusLighter))
+            .clipShape(shape)
             .overlay(
-                RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
-                    .strokeBorder(Ink.stroke, lineWidth: 1)
+                shape.strokeBorder(
+                    LinearGradient(colors: [Ink.strokeHighlight, Ink.stroke],
+                                   startPoint: .top, endPoint: .bottom),
+                    lineWidth: 1
+                )
             )
             .elevation(elevation)
     }
@@ -558,7 +585,7 @@ struct AceScreenTitle: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.s) {
             Text(title)
-                .font(Typeface.display)
+                .aceDisplay()
                 .foregroundStyle(Ink.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
             if let subtitle {

@@ -854,3 +854,65 @@ never thrown. Cancellation ends the stream quietly, which is the right response
 to a student who interrupted on purpose — an error card would be wrong. Deleted
 rather than wired up.
 
+## D57 — Ace was silent unless you had just spoken to it
+
+`beginPlayback()` was called only when `stopTTFAClock()` returned true, and that
+clock only starts when the *student* stops speaking. `RealtimeAudioPlayer.enqueue`
+drops audio while it believes it is not playing. So Ace's opening line, every
+reply to a typed message, and every response after the first were streamed into
+a player that threw them away.
+
+Measuring latency and deciding to make a sound are different questions, and
+tying them together made the second one depend on the first. Playback is now
+tracked per response by `shouldBeginPlayback()`, reset on `audioDone` and on
+both barge-in paths — interrupting Ace used to leave it silent for the rest of
+the session, for the same reason.
+
+The existing conversation check simulated speech before asking for a reply, so
+it only ever exercised the path that worked. `RecordingAudioSink` also appended
+every chunk unconditionally, which made the mock more forgiving than the player
+it stands in for — a sink that accepts what the real one discards cannot fail on
+the bug it exists to model. It now drops exactly as the player does, and counts
+what it dropped.
+
+## D58 — Restoring the audio route belongs in `stop()`
+
+`restorePlaybackRouting()` was the caller's job and four of the five call sites
+forgot, so after a tutor voice session the audio session stayed in `.voiceChat`
+and the focus music played through the call route — the exact thing the function
+was written to prevent. It now runs inside `VoiceSessionController.stop()`.
+
+Checked and cleared while there: the conversation session config is correct —
+`.playAndRecord` with `.voiceChat`, `.defaultToSpeaker` and `.allowBluetooth`,
+set before the engine starts. Echo cancellation is what stops the server VAD
+hearing Ace and barging in on its own voice.
+
+## D59 — Deepened the dark, and made "is it readable" a number
+
+The restyle: a five-step ground ladder from `#05050B` up to a pressed control,
+a lit top edge on raised surfaces, a vertical accent ramp for filled controls
+kept separate from the diagonal brand gradient, deeper shadow paired with a new
+`Glow` for the few things that should read as light sources, and display type at
+black weight with negative tracking.
+
+Depth on a near-black ground comes from the sheen and the brighter top border,
+not from shadow — there is nowhere below `#05050B` for a shadow to darken into.
+
+The part that matters more than the palette: there is no simulator on this
+machine, so a restyle is the one change that cannot be checked by looking.
+`ContrastChecks` computes WCAG ratios from `InkHex` — the same constants the app
+renders, so the checks cannot drift from what ships — across every text token on
+every surface, every stop of both gradients, and every semantic colour.
+
+It caught four real faults in a palette that looked fine as a list of hex codes:
+the primary button's gradient bottomed out at 2.97:1 under its own near-black
+label, accent-on-surface sat at 4.44, tertiary text on a pressed surface at
+4.23, and `accentDeep` was a stop in the gradient that *paints text* rather than
+sits behind it. Checking one representative stop per gradient would have missed
+the first and the last.
+
+`accentDeep` stays dark and stays decorative. The check asserts it is excluded
+from both text-bearing gradients *and* that it still fails the graphic floor, so
+if someone lightens it the comment explaining the exclusion gets flagged as
+stale rather than quietly becoming wrong.
+

@@ -202,6 +202,8 @@ final class RecordingAudioSink: RealtimeAudioSink, @unchecked Sendable {
     private var _stoppedAt: Date?
     private var _stopCount = 0
     private var _finishCount = 0
+    private var _beginCount = 0
+    private var _droppedCount = 0
 
     /// Simulated cost of actually stopping the audio engine. Set this to prove
     /// the budget still holds with a realistic engine underneath.
@@ -212,11 +214,23 @@ final class RecordingAudioSink: RealtimeAudioSink, @unchecked Sendable {
     func beginPlayback() async {
         lock.lock(); defer { lock.unlock() }
         _isPlaying = true
-        _beganAt = Date()
+        _beginCount += 1
+        if _beganAt == nil { _beganAt = Date() }
     }
 
+    /// Drops audio that arrives while not playing — exactly as
+    /// `RealtimeAudioPlayer` does.
+    ///
+    /// This used to append unconditionally, which made the mock more forgiving
+    /// than the thing it stands in for. A sink that accepts what the real one
+    /// discards hides the bug where playback never starts, and that is precisely
+    /// the bug it was standing in for.
     func enqueue(_ pcm: Data) async {
         lock.lock(); defer { lock.unlock() }
+        guard _isPlaying else {
+            _droppedCount += 1
+            return
+        }
         _chunks.append(pcm)
     }
 
@@ -243,4 +257,9 @@ final class RecordingAudioSink: RealtimeAudioSink, @unchecked Sendable {
     var stopCount: Int { lock.lock(); defer { lock.unlock() }; return _stopCount }
     var finishCount: Int { lock.lock(); defer { lock.unlock() }; return _finishCount }
     var didPlayAnything: Bool { !chunks.isEmpty }
+    var beganAt: Date? { lock.lock(); defer { lock.unlock() }; return _beganAt }
+    var chunkCount: Int { chunks.count }
+    var beginCount: Int { lock.lock(); defer { lock.unlock() }; return _beginCount }
+    /// Audio the player would have thrown away.
+    var droppedCount: Int { lock.lock(); defer { lock.unlock() }; return _droppedCount }
 }

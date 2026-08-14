@@ -86,6 +86,101 @@ enum RealtimeIntegrationChecks {
 
     // MARK: - The conversation
 
+    // MARK: - Ace speaking unprompted
+
+    /// Ace has to be audible when nobody asked out loud.
+    ///
+    /// Playback used to be started only when `stopTTFAClock()` returned true,
+    /// and that clock only starts when the *student* stops speaking. So the
+    /// opening line, every reply to a typed message, and every second response
+    /// in a session had `beginPlayback()` skipped — and the player drops chunks
+    /// while it thinks it isn't playing. Ace was silent unless you had just
+    /// talked to it.
+    ///
+    /// The existing conversation check simulates speech first, so it only ever
+    /// exercised the path that worked.
+    static let unpromptedSpeech = CheckSuite(name: "Live Mode — speaking unprompted") { run in
+        let result = runAsync(timeout: 8) { () -> (Bool, Int, Int)? in
+            let mock = MockRealtimeTransport(script: .healthy)
+            let sink = RecordingAudioSink()
+            let provider = OpenAIRealtimeProvider(apiKey: "sk-test", transport: mock)
+            provider.audioSink = sink
+            guard await provider.prewarm(config: makeConfig()) else { return nil }
+
+            // No `simulateSpeechStarted`/`Stopped` — the student typed, or this
+            // is the opening line.
+            let stream = provider.tutorReply(
+                context: TutorContext(studentMessage: "what is photosynthesis?"))
+            do { for try await _ in stream {} } catch {}
+            try? await Task.sleep(for: .milliseconds(80))
+
+            let began = sink.beganAt != nil
+            let chunks = sink.chunkCount
+            let finishes = sink.finishCount
+            await provider.disconnect()
+            return (began, chunks, finishes)
+        }
+
+        guard let (began, chunks, finishes) = result ?? nil else {
+            run.expect(false, "unprompted speech check failed to connect")
+            return
+        }
+        run.expect(began, "playback must begin even when the student never spoke")
+        run.expect(chunks > 0, "audio must reach the sink, not be dropped")
+        run.expectEqual(finishes, 1, "and the response should be closed out once")
+
+        // Two responses in a row, still without speech: the second must play too.
+        let second = runAsync(timeout: 8) { () -> Int? in
+            let mock = MockRealtimeTransport(script: .healthy)
+            let sink = RecordingAudioSink()
+            let provider = OpenAIRealtimeProvider(apiKey: "sk-test", transport: mock)
+            provider.audioSink = sink
+            guard await provider.prewarm(config: makeConfig()) else { return nil }
+
+            for _ in 0..<2 {
+                let stream = provider.tutorReply(
+                    context: TutorContext(studentMessage: "again please"))
+                do { for try await _ in stream {} } catch {}
+                try? await Task.sleep(for: .milliseconds(60))
+            }
+            let count = sink.beginCount
+            await provider.disconnect()
+            return count
+        }
+        run.expectEqual(second ?? nil, 2,
+                        "each response starts playback again — `finishPlayback` ends the last one")
+
+        // And after a barge-in. Interrupting Ace must not silence it for good.
+        let afterBargeIn = runAsync(timeout: 8) { () -> (Int, Int)? in
+            let mock = MockRealtimeTransport(script: .healthy)
+            let sink = RecordingAudioSink()
+            let provider = OpenAIRealtimeProvider(apiKey: "sk-test", transport: mock)
+            provider.audioSink = sink
+            guard await provider.prewarm(config: makeConfig()) else { return nil }
+
+            let first = provider.tutorReply(context: TutorContext(studentMessage: "hello"))
+            do { for try await _ in first {} } catch {}
+            try? await Task.sleep(for: .milliseconds(40))
+
+            // The student cuts in.
+            await provider.stopSpeaking()
+
+            let second = provider.tutorReply(context: TutorContext(studentMessage: "sorry, go on"))
+            do { for try await _ in second {} } catch {}
+            try? await Task.sleep(for: .milliseconds(60))
+
+            let result = (sink.beginCount, sink.droppedCount)
+            await provider.disconnect()
+            return result
+        }
+        if let (begins, dropped) = afterBargeIn ?? nil {
+            run.expect(begins >= 2, "Ace must speak again after being interrupted")
+            run.expectEqual(dropped, 0, "no audio should be handed to a stopped player")
+        } else {
+            run.expect(false, "barge-in recovery check failed to connect")
+        }
+    }
+
     // MARK: - The state machine
 
     /// `TransportState.connecting` existed and was assigned by nothing, so the

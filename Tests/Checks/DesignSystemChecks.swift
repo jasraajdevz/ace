@@ -113,3 +113,148 @@ enum DesignSystemChecks {
                    "duplicate cue identifiers")
     }
 }
+
+// MARK: - Contrast
+
+/// WCAG contrast, computed against the same hex values the app renders.
+///
+/// This exists because a restyle is the one change this machine cannot check by
+/// looking. There is no simulator here, so "is the new palette readable" has to
+/// be a number rather than an opinion — and the numbers caught three real
+/// problems in the deepened palette that eyeballing a hex list would not have:
+/// the primary button's gradient bottomed out at 2.97:1 under its own label,
+/// accent-on-surface sat at 4.44, and tertiary text on a pressed surface at
+/// 4.23.
+///
+/// Ratios are computed from `InkHex` rather than a copy of the palette, so the
+/// checks cannot drift away from what ships.
+enum ContrastChecks {
+
+    /// Relative luminance, per WCAG 2.1.
+    private static func luminance(_ hex: UInt32) -> Double {
+        func channel(_ raw: UInt32) -> Double {
+            let c = Double(raw) / 255
+            return c <= 0.03928 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * channel((hex >> 16) & 0xFF)
+             + 0.7152 * channel((hex >> 8) & 0xFF)
+             + 0.0722 * channel(hex & 0xFF)
+    }
+
+    static func ratio(_ a: UInt32, _ b: UInt32) -> Double {
+        let (la, lb) = (luminance(a), luminance(b))
+        return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+    }
+
+    /// WCAG AA for body text.
+    private static let bodyMinimum = 4.5
+    /// WCAG AA for large text, and the non-text contrast floor for graphics.
+    private static let graphicMinimum = 3.0
+
+    static let all = CheckSuite(name: "Colour contrast") { run in
+
+        let grounds: [(String, UInt32)] = [
+            ("background", InkHex.background),
+            ("surfaceSunken", InkHex.surfaceSunken),
+            ("surface", InkHex.surface),
+            ("surfaceRaised", InkHex.surfaceRaised),
+            ("surfaceActive", InkHex.surfaceActive),
+        ]
+        let texts: [(String, UInt32)] = [
+            ("textPrimary", InkHex.textPrimary),
+            ("textSecondary", InkHex.textSecondary),
+            ("textTertiary", InkHex.textTertiary),
+        ]
+
+        // --- Every text token, on every surface it can land on ------------------
+        //
+        // Every combination, not a sample: a token exists precisely so it can be
+        // used anywhere, and "we only put tertiary on the background" is an
+        // assumption that stops being true the first time someone builds a chip.
+        for (textName, text) in texts {
+            for (groundName, ground) in grounds {
+                let r = ratio(text, ground)
+                run.expect(r >= bodyMinimum,
+                           "\(textName) on \(groundName) is \(String(format: "%.2f", r)):1 "
+                           + "— below AA (\(bodyMinimum):1)")
+            }
+        }
+
+        // --- The primary button's label, across its whole gradient --------------
+        //
+        // Checking one representative stop would have passed while the bottom
+        // third of the button was unreadable.
+        for stop in Ink.accentGradientStops {
+            let r = ratio(InkHex.textOnAccent, stop)
+            run.expect(r >= bodyMinimum,
+                       "the button label is \(String(format: "%.2f", r)):1 on gradient stop "
+                       + "\(String(format: "%06X", stop)) — below AA")
+        }
+
+        // --- Gradient-painted text ---------------------------------------------
+        //
+        // `brandGradient` is used as a `foregroundStyle`, so the text *is* the
+        // gradient. Every stop has to hold up against the ground behind it.
+        for stop in Ink.brandGradientStops {
+            let r = ratio(stop, InkHex.background)
+            run.expect(r >= graphicMinimum,
+                       "brand gradient stop \(String(format: "%06X", stop)) is "
+                       + "\(String(format: "%.2f", r)):1 on the background")
+        }
+
+        // --- Accent as text -----------------------------------------------------
+        run.expect(ratio(InkHex.accent, InkHex.surface) >= bodyMinimum,
+                   "accent text on a card is "
+                   + "\(String(format: "%.2f", ratio(InkHex.accent, InkHex.surface))):1")
+
+        // --- Semantic colours, used as icons and status text --------------------
+        let semantic: [(String, UInt32)] = [
+            ("success", InkHex.success), ("warning", InkHex.warning),
+            ("danger", InkHex.danger), ("flame", InkHex.flame),
+            ("care", InkHex.care), ("calm", InkHex.calm),
+        ]
+        for (name, colour) in semantic {
+            for (groundName, ground) in grounds {
+                let r = ratio(colour, ground)
+                run.expect(r >= graphicMinimum,
+                           "\(name) on \(groundName) is \(String(format: "%.2f", r)):1")
+            }
+        }
+
+        // --- The ground ladder --------------------------------------------------
+        //
+        // Depth only reads if each layer is genuinely lighter than the one below.
+        // Monotonic, and every step big enough to be visible on a phone in
+        // daylight — an invisible step is a layer that may as well not exist.
+        var previous = luminanceOf(InkHex.background)
+        for (name, ground) in grounds.dropFirst() {
+            let current = luminanceOf(ground)
+            run.expect(current > previous,
+                       "\(name) must be lighter than the layer below it")
+            run.expect(ratio(ground, InkHex.background) >= 1.02,
+                       "\(name) is indistinguishable from the background")
+            previous = current
+        }
+
+        // Text on the two special surfaces, which have their own grounds.
+        run.expect(ratio(InkHex.textPrimary, 0x100C0A) >= bodyMinimum,
+                   "crisis-support text must be readable on its warm ground")
+        run.expect(ratio(InkHex.care, 0x1F1814) >= graphicMinimum,
+                   "the care accent must be visible on the care surface")
+        run.expect(ratio(InkHex.textPrimary, 0x070B0F) >= bodyMinimum,
+                   "calm-mode text must be readable")
+
+        // `accentDeep` is allowed to be dark — but only where nothing sits on it.
+        // Asserting that keeps the reason recorded rather than remembered.
+        run.expect(ratio(InkHex.accentDeep, InkHex.background) < graphicMinimum,
+                   "accentDeep is the decorative-only stop; if it now clears the "
+                   + "graphic floor, the comment explaining why it is excluded "
+                   + "from brandGradient is stale")
+        run.expect(!Ink.brandGradientStops.contains(InkHex.accentDeep),
+                   "accentDeep must not be a stop in gradient-painted text")
+        run.expect(!Ink.accentGradientStops.contains(InkHex.accentDeep),
+                   "accentDeep must not sit under the button label")
+    }
+
+    private static func luminanceOf(_ hex: UInt32) -> Double { luminance(hex) }
+}

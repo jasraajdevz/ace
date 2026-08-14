@@ -344,7 +344,6 @@ struct SpeakingDrillView: View {
     private func finish() {
         Task {
             await voice.stop()
-            voice.restorePlaybackRouting()
             await appState.stopSpeaking()
         }
         recorder?.finish(mood: appState.mood.mood)

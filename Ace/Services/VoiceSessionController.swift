@@ -87,6 +87,13 @@ final class VoiceSessionController {
         isListening = false
         isStudentSpeaking = false
         level = 0
+
+        // Restoring the route belongs here rather than at the call sites. It
+        // used to be one caller's job and four of the five forgot, so after a
+        // tutor session the audio session stayed in `.voiceChat` and the focus
+        // music played through the call route — the exact thing
+        // `restorePlaybackRouting` was written to prevent.
+        restorePlaybackRouting()
     }
 
     // MARK: - Frames

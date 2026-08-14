@@ -123,6 +123,10 @@ final class OpenAIRealtimeProvider: AIProvider, @unchecked Sendable {
                     state.beginBargeIn()
                     await self?.audioSink?.stopImmediately()
                     state.completeBargeIn()
+                    // The sink is no longer playing, so the next response has to
+                    // start it again. Without this, barging in once left Ace
+                    // silent for the rest of the session.
+                    state.endPlayback()
                     try? await transport.send(.cancelResponse)
                     state.markStudentSpeaking(true)
 
@@ -133,7 +137,11 @@ final class OpenAIRealtimeProvider: AIProvider, @unchecked Sendable {
                     state.startTTFAClock()
 
                 case .audioDelta(let base64):
-                    if state.stopTTFAClock() {
+                    // Records the metric when the clock was running. Whether it
+                    // was is irrelevant to whether Ace should be audible.
+                    _ = state.stopTTFAClock()
+
+                    if state.shouldBeginPlayback() {
                         // First chunk of this response: start playing at once.
                         await self?.audioSink?.beginPlayback()
                     }
@@ -143,6 +151,7 @@ final class OpenAIRealtimeProvider: AIProvider, @unchecked Sendable {
                     }
 
                 case .audioDone:
+                    state.endPlayback()
                     await self?.audioSink?.finishPlayback()
 
                 case .textDelta(let text):
@@ -250,6 +259,7 @@ final class OpenAIRealtimeProvider: AIProvider, @unchecked Sendable {
         state.beginBargeIn()
         await audioSink?.stopImmediately()
         state.completeBargeIn()
+        state.endPlayback()
         await fallback.stopSpeaking()
         if state.isConnected {
             try? await transport.send(.cancelResponse)
@@ -386,6 +396,7 @@ final class RealtimeState: @unchecked Sendable {
     private var _responseComplete = true
     private var _ttfaStart: Date?
     private var _ttfaRunning = false
+    private var _playbackStarted = false
     private var _rateLimitResetSeconds: Double?
     private var _inputAudioBytes = 0
     private var _outputAudioBytes = 0
@@ -502,6 +513,29 @@ final class RealtimeState: @unchecked Sendable {
     func recordError() {
         lock.lock(); defer { lock.unlock() }
         _latency.recordError()
+    }
+
+    // MARK: Playback
+
+    /// True exactly once per response, on its first audio chunk.
+    ///
+    /// Kept separate from the TTFA clock deliberately. Playback used to be
+    /// started by `stopTTFAClock()` returning true, and that clock only runs
+    /// after the student stops speaking — so Ace's opening line, every reply to
+    /// a typed message, and every response after the first were all delivered to
+    /// a player that believed it wasn't playing, which drops what it is handed.
+    /// Measuring latency and deciding to make a sound are different questions.
+    func shouldBeginPlayback() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard !_playbackStarted else { return false }
+        _playbackStarted = true
+        return true
+    }
+
+    /// The response ended, one way or another.
+    func endPlayback() {
+        lock.lock(); defer { lock.unlock() }
+        _playbackStarted = false
     }
 
     /// Start counting from the moment the student stopped talking.

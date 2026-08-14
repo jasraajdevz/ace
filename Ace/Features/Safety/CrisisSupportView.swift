@@ -42,7 +42,7 @@ struct CrisisSupportView: View {
                         .accessibilityHidden(true)
 
                     Text(response.headline)
-                        .font(Typeface.title1)
+                        .aceTitle()
                         .foregroundStyle(Ink.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)

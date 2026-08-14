@@ -31,74 +31,164 @@ extension Color {
     }
 }
 
+/// The raw hex behind every token.
+///
+/// Split out so the checks can compute contrast ratios against exactly what
+/// ships. A parallel table in the test file would drift the first time anyone
+/// nudged a colour, and the whole point of checking contrast is that it stays
+/// true after somebody restyles.
+enum InkHex {
+    // Ground — a five-step ladder from the app background up to a pressed
+    // control. The steps are deliberately even: depth reads as a sequence, and
+    // an uneven ladder makes one layer look like a mistake.
+    static let background: UInt32     = 0x05050B
+    static let surfaceSunken: UInt32  = 0x0B0B14
+    static let surface: UInt32        = 0x13131E
+    static let surfaceRaised: UInt32  = 0x1E1E2D
+    static let surfaceActive: UInt32  = 0x29293C
+
+    // Text
+    static let textPrimary: UInt32    = 0xF7F7FC
+    static let textSecondary: UInt32  = 0xB6B6CD
+    static let textTertiary: UInt32   = 0x9292AB
+    static let textOnAccent: UInt32   = 0x05050B
+
+    // Brand
+    static let accent: UInt32         = 0x9165FF
+    static let accentAlt: UInt32      = 0x3DDCFF
+    static let accentDeep: UInt32     = 0x5B3BD9
+    static let accentMagenta: UInt32  = 0xC85CFF
+
+    // Semantic
+    static let success: UInt32        = 0x3DDC97
+    static let warning: UInt32        = 0xFFC53D
+    static let danger: UInt32         = 0xFF7A8F
+    static let flame: UInt32          = 0xFF9752
+    static let care: UInt32           = 0xF0B27A
+    static let calm: UInt32           = 0x9BB0C6
+}
+
 /// Every colour in the app.
 enum Ink {
 
     // MARK: Ground
 
     /// The deepest layer — the app background. Very slightly blue so it reads
-    /// as considered rather than "black because we didn't pick one".
-    static let background = Color(hex: 0x0A0A11)
+    /// as considered rather than "black because we didn't pick one", and deep
+    /// enough that everything above it has somewhere to rise from.
+    static let background = Color(hex: InkHex.background)
+    /// Recessed: text fields, wells, the inside of a progress track. The only
+    /// token below the background, so an inset actually reads as inset.
+    static let surfaceSunken = Color(hex: InkHex.surfaceSunken)
     /// Cards and sheets sitting on the background.
-    static let surface = Color(hex: 0x14141F)
+    static let surface = Color(hex: InkHex.surface)
     /// A raised element on top of a surface (a chip inside a card).
-    static let surfaceRaised = Color(hex: 0x1D1D2B)
+    static let surfaceRaised = Color(hex: InkHex.surfaceRaised)
     /// Pressed / selected background.
-    static let surfaceActive = Color(hex: 0x262637)
+    static let surfaceActive = Color(hex: InkHex.surfaceActive)
     /// Hairline separators and card borders.
-    static let stroke = Color(hex: 0xFFFFFF, opacity: 0.10)
-    static let strokeStrong = Color(hex: 0xFFFFFF, opacity: 0.18)
+    static let stroke = Color(hex: 0xFFFFFF, opacity: 0.08)
+    static let strokeStrong = Color(hex: 0xFFFFFF, opacity: 0.16)
+    /// The top edge of a raised surface. Light comes from above, so the lit
+    /// edge is what actually sells depth on a dark ground — more than shadow
+    /// does, because shadow on near-black has almost nowhere to go.
+    static let strokeHighlight = Color(hex: 0xFFFFFF, opacity: 0.14)
 
     // MARK: Text
 
-    static let textPrimary = Color(hex: 0xF5F5FA)
-    static let textSecondary = Color(hex: 0xA9A9BF)
-    static let textTertiary = Color(hex: 0x6E6E85)
+    static let textPrimary = Color(hex: InkHex.textPrimary)
+    static let textSecondary = Color(hex: InkHex.textSecondary)
+    static let textTertiary = Color(hex: InkHex.textTertiary)
     /// Text that sits on top of an accent-filled surface.
-    static let textOnAccent = Color(hex: 0x0A0A11)
+    static let textOnAccent = Color(hex: InkHex.textOnAccent)
 
     // MARK: Brand
 
     /// Ace's primary colour. Electric violet.
-    static let accent = Color(hex: 0x7C5CFF)
+    static let accent = Color(hex: InkHex.accent)
     /// The second half of the signature gradient. Cyan.
-    static let accentAlt = Color(hex: 0x22D3EE)
+    static let accentAlt = Color(hex: InkHex.accentAlt)
+    /// The dark end of the accent ramp. Gives a filled control somewhere to
+    /// fall off to, so it reads as lit rather than painted.
+    static let accentDeep = Color(hex: InkHex.accentDeep)
     /// A soft violet wash for backgrounds behind accent content.
-    static let accentSoft = Color(hex: 0x7C5CFF, opacity: 0.16)
+    static let accentSoft = Color(hex: InkHex.accent, opacity: 0.18)
 
     // MARK: Semantic
 
-    static let success = Color(hex: 0x34D399)
-    static let successSoft = Color(hex: 0x34D399, opacity: 0.16)
-    static let warning = Color(hex: 0xFBBF24)
-    static let warningSoft = Color(hex: 0xFBBF24, opacity: 0.16)
-    static let danger = Color(hex: 0xFB7185)
-    static let dangerSoft = Color(hex: 0xFB7185, opacity: 0.16)
+    static let success = Color(hex: InkHex.success)
+    static let successSoft = Color(hex: InkHex.success, opacity: 0.18)
+    static let warning = Color(hex: InkHex.warning)
+    static let warningSoft = Color(hex: InkHex.warning, opacity: 0.18)
+    static let danger = Color(hex: InkHex.danger)
+    static let dangerSoft = Color(hex: InkHex.danger, opacity: 0.18)
     /// Streaks and celebration.
-    static let flame = Color(hex: 0xFF9752)
+    static let flame = Color(hex: InkHex.flame)
 
     // MARK: Special surfaces
 
     /// Do Not Disturb / low-stimulation study mode (Part 4). Deliberately
     /// desaturated — the calm surface should feel like the colour drained out.
-    static let calm = Color(hex: 0x8FA3B8)
-    static let calmBackground = Color(hex: 0x0C1014)
+    static let calm = Color(hex: InkHex.calm)
+    static let calmBackground = Color(hex: 0x070B0F)
 
     /// The crisis-support surface. Warm and soft, with no brand energy at all —
     /// this screen must not look like the rest of the game.
-    static let careBackground = Color(hex: 0x14100E)
-    static let careSurface = Color(hex: 0x211A16)
-    static let careAccent = Color(hex: 0xF0B27A)
+    static let careBackground = Color(hex: 0x100C0A)
+    static let careSurface = Color(hex: 0x1F1814)
+    static let careAccent = Color(hex: InkHex.care)
 
     // MARK: Gradients
 
     /// The signature gradient. Used sparingly: the mark, level-ups, the primary
     /// button. If it's everywhere it stops meaning anything.
+    /// Cyan → violet → magenta. It runs *bright to bright* on purpose: this
+    /// gradient is used as a `foregroundStyle`, so the text is the gradient, and
+    /// a dark stop would leave part of a word nearly invisible. `accentDeep`
+    /// belongs in fills that have nothing on top of them, not here — it measures
+    /// 2.97:1 on the background, which the contrast checks caught.
     static let brandGradient = LinearGradient(
-        colors: [accent, accentAlt],
+        colors: [accentAlt, accent, Color(hex: InkHex.accentMagenta)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
+
+    /// Every stop of `brandGradient`, for the contrast checks.
+    static let brandGradientStops: [UInt32] = [InkHex.accentAlt, InkHex.accent,
+                                               InkHex.accentMagenta]
+
+    /// A filled control. Three stops rather than two so the fill has a lit top
+    /// and a shadowed bottom instead of a flat wash across it.
+    /// Deliberately does NOT reach `accentDeep`. The primary button carries a
+    /// near-black label, and black on `accentDeep` is 2.97:1 — the bottom third
+    /// of the button would have been unreadable. The ramp stops at a violet that
+    /// still clears AA, and `accentDeep` stays for decoration with nothing on
+    /// top of it. `DesignSystemChecks` asserts the whole ramp, not just the mid
+    /// stop, so this cannot quietly regress.
+    static let accentGradient = LinearGradient(
+        colors: [Color(hex: 0xA880FF), accent, Color(hex: 0x7C5CFF)],
+        startPoint: .top,
+        endPoint: .bottom
+    )
+
+    /// The three stops of `accentGradient`, exposed so contrast can be checked
+    /// against every one of them rather than a representative sample.
+    static let accentGradientStops: [UInt32] = [0xA880FF, InkHex.accent, 0x7C5CFF]
+
+    /// The lit top edge of a raised surface, fading out by the middle.
+    static let sheenGradient = LinearGradient(
+        colors: [Color(hex: 0xFFFFFF, opacity: 0.16),
+                 Color(hex: 0xFFFFFF, opacity: 0.02),
+                 Color(hex: 0xFFFFFF, opacity: 0.0)],
+        startPoint: .top,
+        endPoint: .bottom
+    )
+
+    /// Depth for a card: a hair darker at the bottom than the token alone.
+    static func surfaceGradient(_ base: Color) -> LinearGradient {
+        LinearGradient(colors: [base, base.opacity(0.86)],
+                       startPoint: .top, endPoint: .bottom)
+    }
 
     static let flameGradient = LinearGradient(
         colors: [flame, Color(hex: 0xFF5F6D)],
@@ -108,10 +198,10 @@ enum Ink {
 
     /// Ambient wash behind hero content.
     static let auraGradient = RadialGradient(
-        colors: [accent.opacity(0.30), accent.opacity(0.0)],
+        colors: [accent.opacity(0.42), accentDeep.opacity(0.14), accent.opacity(0.0)],
         center: .topLeading,
         startRadius: 8,
-        endRadius: 420
+        endRadius: 460
     )
 
     /// Mood-specific tint, used for the subtle glow around the tutor surface.
@@ -173,11 +263,17 @@ enum Radius {
 /// SF Rounded throughout: it reads friendly and confident without being childish,
 /// which is exactly the register for a 5th grader *and* a college student.
 enum Typeface {
-    static let display = Font.system(.largeTitle, design: .rounded, weight: .heavy)
-    static let title1 = Font.system(.title, design: .rounded, weight: .bold)
+    static let display = Font.system(.largeTitle, design: .rounded, weight: .black)
+    static let title1 = Font.system(.title, design: .rounded, weight: .heavy)
     static let title2 = Font.system(.title2, design: .rounded, weight: .bold)
-    static let title3 = Font.system(.title3, design: .rounded, weight: .semibold)
+    static let title3 = Font.system(.title3, design: .rounded, weight: .bold)
     static let headline = Font.system(.headline, design: .rounded, weight: .semibold)
+
+    /// Big rounded type at heavy weights gets loose without help. Negative
+    /// tracking only on the display sizes — applying it to body text costs
+    /// legibility for no gain.
+    static let displayTracking: CGFloat = -0.9
+    static let titleTracking: CGFloat = -0.5
     static let body = Font.system(.body, design: .rounded, weight: .regular)
     static let bodyEmphasis = Font.system(.body, design: .rounded, weight: .semibold)
     static let callout = Font.system(.callout, design: .rounded, weight: .regular)
@@ -196,6 +292,21 @@ enum Typeface {
     static let reading = Font.system(.body, design: .default, weight: .regular)
 }
 
+extension View {
+    /// Display type: heaviest weight, tightened.
+    ///
+    /// A modifier rather than a rule to remember, because rounded type at black
+    /// weight is exactly where tracking matters and exactly where it is easiest
+    /// to forget.
+    func aceDisplay() -> some View {
+        font(Typeface.display).tracking(Typeface.displayTracking)
+    }
+
+    func aceTitle() -> some View {
+        font(Typeface.title1).tracking(Typeface.titleTracking)
+    }
+}
+
 // MARK: - Elevation
 
 /// Shadow presets. Dark UIs need *less* shadow and more border than light ones,
@@ -206,14 +317,33 @@ struct Elevation {
     let opacity: Double
 
     static let none = Elevation(radius: 0, y: 0, opacity: 0)
-    static let low = Elevation(radius: 10, y: 4, opacity: 0.30)
-    static let medium = Elevation(radius: 20, y: 8, opacity: 0.36)
-    static let high = Elevation(radius: 34, y: 14, opacity: 0.44)
+    static let low = Elevation(radius: 14, y: 5, opacity: 0.44)
+    static let medium = Elevation(radius: 26, y: 11, opacity: 0.52)
+    static let high = Elevation(radius: 44, y: 20, opacity: 0.60)
+}
+
+/// A coloured glow, for the few things that should look lit from within: the
+/// primary button, the mark, a level-up. Distinct from `Elevation`, which is a
+/// black shadow and answers a different question — how far off the page is
+/// this, versus is this thing a light source.
+struct Glow {
+    let color: Color
+    let radius: CGFloat
+    let opacity: Double
+
+    static let none = Glow(color: .clear, radius: 0, opacity: 0)
+    static let accent = Glow(color: Ink.accent, radius: 22, opacity: 0.42)
+    static let accentStrong = Glow(color: Ink.accent, radius: 38, opacity: 0.55)
 }
 
 extension View {
     func elevation(_ level: Elevation) -> some View {
         shadow(color: .black.opacity(level.opacity), radius: level.radius, x: 0, y: level.y)
+    }
+
+    /// Light coming *out* of the view rather than shadow falling from it.
+    func glow(_ glow: Glow) -> some View {
+        shadow(color: glow.color.opacity(glow.opacity), radius: glow.radius, x: 0, y: 0)
     }
 }
 
