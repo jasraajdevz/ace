@@ -11,8 +11,8 @@ cd ~/Downloads/ace && ./Tools/verify.sh && ./Tools/qa.sh
 
 **Result: everything verifiable on this machine passes.** 2,949 assertions, the
 **whole app type-checked** (21 SwiftData-bound files against 53 real sources),
-79 files through the syntax gate, three-target project graph validated, QA sweep
-clean.
+**149 persistence checks executed** against an in-memory store, 79 files through
+the syntax gate, three-target project graph validated, QA sweep clean.
 
 The one thing this log cannot claim is a Simulator run-through — see
 [What could not be verified here](#what-could-not-be-verified-here), which is the
@@ -36,7 +36,7 @@ most important section in this file.
 |---|---|---|
 | Capture → Socratic tutor → quiz → grade → XP/level/streak | ⚠️ **needs Xcode** for the run; engines verified, screens type-check | `QuizRunner` (70), `FlashcardRunner` (65), `SourceTutor` (222), progression (222). The screens wiring them together now compile. |
 | Widget updates | ⚠️ **needs Xcode** for the *run* | `WidgetBridge.publish` is called from `SessionRecorder.persist()`, capture, and Home's `.task` — all three now type-check. Snapshot round-trip verified. |
-| Everything persists across relaunch | ⚠️ **needs Xcode** for the *run* | Models, stores and `SessionRecorder` now type-check for real. What's unproven is runtime schema validity, which needs a device. |
+| Everything persists across relaunch | ⚠️ **needs Xcode** for real SwiftData | Models, stores and `SessionRecorder` are now **executed** against an in-memory store — 149 checks covering fetch-or-create idempotence, XP landing, level-up detection, safety suppression, SRS round-tripping, best-vs-last score. What's unproven is real-framework behaviour: cascade deletes, relationship inverses, `@Attribute(.unique)`, migration. |
 | Answer must not leak before it's earned | ✅ | Asserted for every mood and every rung; hint ladder withholds its last rung. |
 | Effort always pays | ✅ | `XPEvent.attemptedAnswer.amount > 0` asserted. |
 
@@ -110,6 +110,7 @@ the largest accessibility text sizes.
 |---|---|
 | Unreferenced types | ✅ None. Found one — `RealtimeSessionMinter` was built in Part 3 and never called. Rather than delete it, it's now wired into the transport so Live Mode connects with a short-lived ephemeral token instead of the raw key, which is what D24 claimed it would do. |
 | Type errors in the screens | ✅ None. Found **three** on the shimmed type-check's first complete run: `TextField(_:text:axis:prompt:)` with the arguments in the wrong order, in `SourceDetailView`, `TutorView` and `BodyDoubleView`. All three would have failed the first Xcode build. |
+| Memory safety | ✅ Found **one crash**. `SessionRecorder` held `celebrations` and `safety` as `unowned`; ARC releases at last *use*, not scope end, so any caller not independently retaining them crashed on a destroyed object. It only worked in the app by luck of ownership. Now strong — neither type refers back, so there is no cycle. |
 | `print` statements | ✅ None in shipping code. |
 | TODO/FIXME/HACK/WIP/stub markers | ✅ None. |
 | `fatalError` / `preconditionFailure` | ✅ None. |
@@ -180,6 +181,7 @@ than failing silently. The Simulator is unaffected entirely.
 |---|---|
 | Assertions | 2,949 across 27 suites |
 | App files type-checked | 21 SwiftData-bound + 53 real sources |
+| Persistence checks executed | 149 |
 | Swift files | 79 (app + widget + share + shared) |
 | Lines of Swift | ~26,000 including tests and tooling |
 | Targets | 3 — app, widget extension, share extension |

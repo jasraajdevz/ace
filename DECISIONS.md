@@ -650,3 +650,35 @@ mismatch — were caught 4/4, while `swiftc -parse` caught 0/4.
 
 What it still does not prove: that the real macro expands the way the shim
 models it, that the schema is valid at runtime, or anything about layout.
+
+
+### D45 · The shim became a real store, so persistence is executed not just compiled
+
+Type-checking the SwiftData layer proved it *compiles*. It said nothing about
+whether `fetchOrCreate` creates once or twice, whether XP actually lands on the
+record, or whether the crisis net genuinely suppresses gamification.
+
+So `swiftdata_shim.swift` grew a working in-memory `ModelContext` — `insert`
+inserts, `fetch` returns and sorts, `delete` removes — and
+`Tests/Persistence/` runs 149 checks against it via
+`harness_data.py --run`.
+
+**It found a crash.** `SessionRecorder` held `celebrations` and `safety` as
+`unowned`. ARC releases at last *use*, not at scope end, so a caller that
+doesn't independently retain those objects for the recorder's whole lifetime hits
+a destroyed reference. In the app it happens to work because both are `@State` on
+the same view — luck of ownership, not design. Neither type refers back to
+`SessionRecorder`, so strong references cannot form a cycle; they are strong now.
+
+Verified adversarially, as with the type-check: three behavioural regressions
+were injected — removing the safety-suppression guard, removing the
+already-finished guard, and making `fetchOrCreate` create every time. The
+type-check noticed **none** of them (they all compile). The running harness
+caught **all three**, including "NO XP is awarded during a safety event: expected
+0, got 50" — which is the §10 guarantee, now protected by an executing test
+rather than by careful reading.
+
+The boundary is drawn deliberately: the checks never assert on cascade deletes,
+relationship inverse maintenance or `@Attribute(.unique)`. Those are real
+SwiftData behaviours the shim doesn't emulate, and asserting on them would be
+testing the shim rather than the app.

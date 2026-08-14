@@ -15,10 +15,12 @@
 #       constructs every design-system component using the exact argument shapes
 #       the screens use, so a signature change breaks the build here.
 #
-#    2. SHIMMED TYPE-CHECK — the SwiftData-bound files (models, stores, and
-#       every screen) are copied, stripped of the `@Model` macro attributes that
-#       need Xcode's plugin, and compiled against a shim plus the real sources.
-#       That type-checks the whole app. A syntax gate then covers the rest.
+#    2. SHIMMED TYPE-CHECK + PERSISTENCE RUN — the SwiftData-bound files (models,
+#       stores, and every screen) are copied, stripped of the `@Model` macro
+#       attributes that need Xcode's plugin, and compiled against a shim plus the
+#       real sources. The shim is a working in-memory store, so the persistence
+#       layer is then *executed*: stores, XP, level-ups, safety suppression. A
+#       syntax gate covers what's left (the two iOS-only extensions).
 #
 #    3. PROJECT INTEGRITY — the Xcode project, Info.plist, asset catalogue and
 #       bundled decks are structurally validated.
@@ -62,13 +64,14 @@ fi
 section "2 · Type-check and syntax gate"
 
 # The SwiftData-bound half of the app — models, stores, and every screen —
-# compiled for real against a shim. See Tools/gen/typecheck_data.py.
-if TYPECHECK=$(python3 Tools/gen/typecheck_data.py 2>&1); then
-    pass "SwiftData-bound app type-checks"
-    echo "$TYPECHECK" | sed 's|^|  |'
+# compiled for real against a shim, then run against its in-memory store.
+# See Tools/gen/harness_data.py.
+if HARNESS=$(python3 Tools/gen/harness_data.py --run 2>&1); then
+    pass "SwiftData-bound app type-checks and its persistence layer runs"
+    echo "$HARNESS" | sed 's|^|  |'
 else
-    fail "type errors in the SwiftData-bound app"
-    echo "$TYPECHECK" | sed 's|^|  |'
+    fail "the SwiftData harness failed"
+    echo "$HARNESS" | sed 's|^|  |'
 fi
 
 SYNTAX_ERRORS=0

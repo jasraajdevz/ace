@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-typecheck_data.py — type-check the SwiftData-bound app without Xcode.
+harness_data.py — type-check AND run the SwiftData-bound app without Xcode.
 
 The problem this solves: `@Model` is a compiler-plugin macro that ships inside
 Xcode. On a machine with only the Swift command-line tools, every file using it
@@ -14,13 +14,18 @@ alongside the real `Core/`, `DesignSystem/` and `Services/` sources.
 That yields a genuine type-check of every property access, method signature and
 generic constraint in those files.
 
+With `--run` it goes further: the shim is a working in-memory store, so the
+persistence *logic* is executed rather than merely compiled — see
+`Tests/Persistence/PersistenceChecks.swift`.
+
 Honest about what it does NOT prove:
   • that the real `@Model` macro expands the way the shim models it
   • that the SwiftData schema is valid at runtime
   • that the SwiftUI screens LAY OUT correctly, or that iOS-only modifiers
     behave as intended — only that every call in them resolves and type-checks
 
-Run:  python3 Tools/gen/typecheck_data.py
+Run:  python3 Tools/gen/harness_data.py          # type-check only
+      python3 Tools/gen/harness_data.py --run    # type-check, then execute
 """
 
 import pathlib
@@ -65,12 +70,20 @@ REAL_SOURCE_DIRS = [
 EXCLUDE_FROM_REAL = {"ShareImporter.swift"}
 
 
-def strip_macros(source: str) -> str:
+def strip_macros(source: str, drop_main: bool = False) -> str:
     """Remove the macro attributes the plugin would otherwise expand.
 
     Deliberately conservative: it only removes attributes, never rewrites logic,
     so a type error in the surrounding code survives the transform intact.
+
+    `drop_main` removes `@main` from `AceApp`. In run mode the harness supplies
+    its own entry point, and `@main` cannot coexist with top-level code — but
+    the struct still compiles and is still worth type-checking.
     """
+    if drop_main:
+        source = re.sub(r"^@main\s*$", "// @main (harness supplies the entry point)",
+                        source, flags=re.MULTILINE)
+
     # `@Model` → `@Observable`. The shim's PersistentModel requires Observable,
     # and this keeps `@Bindable` usage honest.
     source = re.sub(r"^@Model\b", "@Observable", source, flags=re.MULTILINE)
@@ -104,8 +117,15 @@ def strip_macros(source: str) -> str:
     return source
 
 
+# The headless persistence suite, compiled in only for `--run`.
+HARNESS_DIR = "Tests/Persistence"
+# The assertion helper the suites use, shared with the SPM verification target.
+HARNESS_SUPPORT = ["Tests/Checks/CheckHarness.swift"]
+
+
 def main() -> int:
-    scratch = pathlib.Path(tempfile.mkdtemp(prefix="ace-typecheck-"))
+    should_run = "--run" in sys.argv
+    scratch = pathlib.Path(tempfile.mkdtemp(prefix="ace-harness-"))
     try:
         sources: list[pathlib.Path] = []
 
@@ -125,7 +145,8 @@ def main() -> int:
                 print(f"    ! target missing: {path}")
                 continue
             out = scratch / path.name
-            out.write_text(strip_macros(path.read_text()))
+            out.write_text(strip_macros(path.read_text(),
+                                        drop_main=should_run and path.name == "AceApp.swift"))
             sources.append(out)
             stripped_count += 1
 
@@ -139,10 +160,25 @@ def main() -> int:
                 sources.append(path)
                 real_count += 1
 
-        # 4. Type-check the lot. `-typecheck` skips codegen, which is all we need
+        # 4. For `--run`, add the persistence suite and its assertion helper.
+        #    `CheckHarness.swift` declares `AllChecks`, which references suites
+        #    that aren't compiled here, so only the `CheckRun`/`CheckSuite` half
+        #    is taken.
+        if should_run:
+            support = (ROOT / HARNESS_SUPPORT[0]).read_text()
+            support = support.split("/// Everything the verifier executes.")[0]
+            (scratch / "CheckHarness.swift").write_text(support)
+            sources.append(scratch / "CheckHarness.swift")
+            for path in sorted((ROOT / HARNESS_DIR).glob("*.swift")):
+                sources.append(path)
+
+        # 5. Type-check the lot. `-typecheck` skips codegen, which is all we need
         #    and roughly twice as fast.
+        binary = scratch / "ace-persistence"
+        mode = ["-o", str(binary)] if should_run else ["-typecheck"]
+
         result = subprocess.run(
-            ["swiftc", "-typecheck", "-swift-version", "5",
+            ["swiftc", "-swift-version", "5"] + mode + [
              # The screens use iOS-only SwiftUI (`fullScreenCover`,
              # `.topBarLeading`, `navigationBarTitleDisplayMode`). Disabling the
              # availability checker keeps the REAL SwiftUI declarations — and
@@ -172,6 +208,17 @@ def main() -> int:
 
         print(f"    {stripped_count} SwiftData-bound files type-checked "
               f"against {real_count} real sources")
+
+        if not should_run:
+            return 0
+
+        # 6. Execute the persistence suite against the in-memory store.
+        run = subprocess.run([str(binary)], capture_output=True, text=True, cwd=scratch)
+        print(run.stdout.rstrip())
+        if run.returncode != 0:
+            if run.stderr.strip():
+                print(run.stderr.rstrip())
+            return 1
         return 0
 
     finally:

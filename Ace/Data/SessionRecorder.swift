@@ -23,8 +23,13 @@ final class SessionRecorder {
     private let context: ModelContext
     private let progress: ProgressRecord
     private let session: StudySession
-    private unowned let celebrations: CelebrationCenter
-    private unowned let safety: SafetyCoordinator
+    // Strong, not `unowned`. ARC releases at last use rather than at scope
+    // end, so an `unowned` reference here crashes any caller that doesn't
+    // happen to hold its own strong reference for the recorder's whole life.
+    // Neither of these types refers back to SessionRecorder, so there is no
+    // cycle to avoid.
+    private let celebrations: CelebrationCenter
+    private let safety: SafetyCoordinator
 
     /// Total XP earned in this session, for the results screen.
     private(set) var sessionXP = 0
